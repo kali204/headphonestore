@@ -2,11 +2,6 @@
 node_modules/
 vendor/
 
-# Build files
-build/
-dist/
-*.exe
-*.dll
 
 # Log files
 *.log
