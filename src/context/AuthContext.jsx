@@ -5,8 +5,7 @@ const AuthContext = createContext()
 export const useAuth = () => useContext(AuthContext)
 
 // ✅ Use environment variable or fallback to localhost
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000'
-
+const BASE_URL = "https://headphonestore-cmeo.onrender.com"
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(null)
