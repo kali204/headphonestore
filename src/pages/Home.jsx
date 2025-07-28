@@ -6,6 +6,7 @@ import Hero from "./Hero";
 import axios from "axios";
 import "./css/FeaturedProducts.css"; // Import the 3D carousel CSS
 
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000'
 const Home = () => {
   const [products, setProducts] = useState([]);
   const { addToCart } = useCart();
@@ -13,7 +14,7 @@ const Home = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const { data } = await axios.get("http://localhost:5000/api/products");
+        const { data } = await axios.get(`${BASE_URL}/api/products`);
         setProducts(data.slice(0, 6)); // Use 6 products for carousel symmetry
       } catch (error) {
         console.error("Error fetching products:", error);

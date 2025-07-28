@@ -15,7 +15,7 @@ const ForgotPassword = () => {
     setSuccess(false)
 
     try {
-      const res = await fetch('http://localhost:5000/api/change-password', {
+      const res = await fetch('https://headphonestore-cmeo.onrender.com/api/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, new_password: password })

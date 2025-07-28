@@ -17,7 +17,7 @@ const ProductDetail = () => {
 
   const fetchProduct = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/products')
+      const response = await axios.get('https://headphonestore-cmeo.onrender.com/api/products')
       const foundProduct = response.data.find(p => p.id === parseInt(id))
       setProduct(foundProduct)
       setLoading(false)

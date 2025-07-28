@@ -21,7 +21,7 @@ const ManageOrders = () => {
 
   const fetchOrders = async () => {
     try {
-      const { data } = await axios.get('http://localhost:5000/api/admin/orders', {
+      const { data } = await axios.get('https://headphonestore-cmeo.onrender.com/api/admin/orders', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setOrders(data);
@@ -41,7 +41,7 @@ const ManageOrders = () => {
     setUpdatingId(id);
     try {
       await axios.patch(
-        `http://localhost:5000/api/admin/orders/${id}/status`,
+        `https://headphonestore-cmeo.onrender.com/api/admin/orders/${id}/status`,
         { status },
         { headers: { Authorization: `Bearer ${token}` } }
       );

@@ -17,7 +17,7 @@ const Products = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/products');
+      const response = await axios.get('https://headphonestore-cmeo.onrender.com/api/products');
       const productsData = response.data;
       setProducts(productsData);
 

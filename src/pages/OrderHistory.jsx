@@ -35,9 +35,8 @@ const OrderHistory = () => {
       setLoading(true);
       setError('');
       try {
-        // If you add include_items support on the backend, uncomment the next line and remove the one after
-        // const res = await fetch('http://localhost:5000/api/orders?include_items=1', {
-        const res = await fetch('http://localhost:5000/api/orders', {
+        
+        const res = await fetch('https://headphonestore-cmeo.onrender.com/api/orders', {
           headers: { Authorization: `Bearer ${token}` },
         });
 

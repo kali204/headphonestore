@@ -9,7 +9,7 @@ const DeliveryAreasAdmin = () => {
 
   const fetchAreas = async () => {
     try {
-      const { data } = await axios.get("http://127.0.0.1:5000/api/admin/delivery-areas")
+      const { data } = await axios.get("https://headphonestore-cmeo.onrender.com/api/admin/delivery-areas")
       setAreas(data)
     } catch (err) {
       alert("Failed to load delivery areas.")
@@ -25,7 +25,7 @@ const DeliveryAreasAdmin = () => {
     e.preventDefault()
     setLoading(true)
     try {
-      await axios.post("http://127.0.0.1:5000/api/admin/delivery-areas", form)
+      await axios.post("https://headphonestore-cmeo.onrender.com/api/admin/delivery-areas", form)
       setForm({ city: "", pincode: "", active: true })
       fetchAreas()
     } catch (err) {
@@ -40,7 +40,7 @@ const DeliveryAreasAdmin = () => {
     if (!window.confirm("Remove this delivery area?")) return
     setLoading(true)
     try {
-      await axios.delete(`http://127.0.0.1:5000/api/admin/delivery-areas/${id}`)
+      await axios.delete(`https://headphonestore-cmeo.onrender.com/api/admin/delivery-areas/${id}`)
       fetchAreas()
     } catch (err) {
       alert("Could not remove area.")

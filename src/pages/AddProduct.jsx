@@ -20,7 +20,7 @@ const AddProduct = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      await axios.post('http://localhost:5000/api/products', form)
+      await axios.post('https://headphonestore-cmeo.onrender.com/api/products', form)
       navigate('/admin/products')
     } catch (err) {
       console.error('Failed to add product:', err)

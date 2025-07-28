@@ -66,7 +66,7 @@ const Checkout = () => {
   useEffect(() => {
     const fetchAreas = async () => {
       try {
-        const { data } = await axios.get("http://localhost:5000/api/delivery-areas");
+        const { data } = await axios.get("https://headphonestore-cmeo.onrender.com/api/delivery-areas");
         setDeliveryAreas(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Failed to fetch delivery areas:", err);
@@ -118,7 +118,7 @@ const Checkout = () => {
       }
 
       const { data } = await axios.post(
-        "http://localhost:5000/api/orders/create",
+        "https://headphonestore-cmeo.onrender.com/api/orders/create",
         {
           amount: getTotalPrice(),
           address: formData.address,
@@ -151,7 +151,7 @@ const Checkout = () => {
         handler: async (response) => {
           try {
             await axios.post(
-              "http://localhost:5000/api/orders/verify",
+              "https://headphonestore-cmeo.onrender.com/api/orders/verify",
               {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,

@@ -62,7 +62,7 @@ const Dashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/admin/stats', { params: dateRange })
+      const response = await axios.get('https://headphonestore-cmeo.onrender.com/api/admin/stats', { params: dateRange })
       setStats(response.data)
     } catch (error) {
       console.error('Failed to fetch stats:', error)
@@ -71,7 +71,7 @@ const Dashboard = () => {
 
   const fetchRevenue = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/admin/revenue-series', { params: dateRange })
+      const response = await axios.get('https://headphonestore-cmeo.onrender.com/api/admin/revenue-series', { params: dateRange })
       setRevenueData(response.data)
     } catch (error) {
       console.error('Failed to fetch revenue data:', error)
@@ -146,7 +146,7 @@ const ProductsAdmin = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/products')
+      const response = await axios.get('https://headphonestore-cmeo.onrender.com/api/products')
       setProducts(response.data)
     } catch (error) {
       console.error('Failed to fetch products:', error)
@@ -157,7 +157,7 @@ const ProductsAdmin = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        await axios.delete('http://localhost:5000/api/products/${id}')
+        await axios.delete('https://headphonestore-cmeo.onrender.com/api/products/${id}')
         fetchProducts()
       } catch (error) {
         console.error('Failed to delete product:', error)
@@ -240,7 +240,7 @@ const SettingsAdmin = () => {
 
   const handleSaveSettings = async () => {
     try {
-      await axios.post('http://localhost:5000/api/admin/settings', {
+      await axios.post('https://headphonestore-cmeo.onrender.com/api/admin/settings', {
         storeName,
         maintenance
       })
@@ -254,7 +254,7 @@ const SettingsAdmin = () => {
   const handleChangePassword = async () => {
     if (!password.trim()) return alert('Password cannot be empty!')
     try {
-      await axios.post('http://localhost:5000/api/admin/change-password', { password })
+      await axios.post('https://headphonestore-cmeo.onrender.com/api/admin/change-password', { password })
       alert('Password changed successfully!')
       setPassword('')
     } catch (error) {

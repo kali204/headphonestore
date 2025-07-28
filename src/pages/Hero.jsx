@@ -13,7 +13,7 @@ const Hero = () => {
   useEffect(() => {
     const fetchImages = async () => {
       try {
-        const { data } = await axios.get("http://localhost:5000/api/products");
+        const { data } = await axios.get("https://headphonestore-cmeo.onrender.com/api/products");
         setImages(data.slice(0, 6));
         setIsLoading(false);
       } catch (error) {
