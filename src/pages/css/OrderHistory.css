@@ -1,0 +1,417 @@
+/* Order History Page Styles - Clean & Simple */
+.order-history-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  min-height: 80vh;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 2rem;
+  text-align: center;
+  border-bottom: 2px solid #f3f4f6;
+  padding-bottom: 1rem;
+}
+
+/* Loading State */
+.loading-state {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f4f6;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  color: #6b7280;
+  font-size: 1.1rem;
+}
+
+/* Error State */
+.error-state {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.error-text {
+  color: #dc2626;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 4rem 1rem;
+}
+
+.empty-icon {
+  width: 64px;
+  height: 64px;
+  color: #9ca3af;
+  margin: 0 auto 1rem;
+}
+
+.empty-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #4b5563;
+  margin-bottom: 0.5rem;
+}
+
+.empty-subtext {
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+/* Orders List */
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Order Card */
+.order-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.order-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Order Header */
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem;
+  gap: 1rem;
+}
+
+.order-info {
+  flex: 1;
+}
+
+.order-number {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.75rem;
+}
+
+.order-icon {
+  width: 20px;
+  height: 20px;
+  color: #3b82f6;
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  margin-bottom: 1rem;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-cancelled {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.status-default {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* Order Meta */
+.order-meta {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.meta-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Expand Button */
+.expand-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #3b82f6;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.expand-button:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.expand-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Order Items */
+.order-items {
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 1.5rem;
+}
+
+.items-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 1rem;
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Item Row */
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.item-image {
+  flex-shrink: 0;
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f3f4f6;
+}
+
+.item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.item-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.item-quantity,
+.item-price {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.125rem;
+}
+
+.item-total {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1f2937;
+  text-align: right;
+}
+
+.no-items {
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+}
+
+/* Dark Mode Support */
+.dark .order-card {
+  background: #1f2937;
+  border-color: #374151;
+}
+
+.dark .page-title {
+  color: #f9fafb;
+  border-bottom-color: #374151;
+}
+
+.dark .order-number {
+  color: #f9fafb;
+}
+
+.dark .order-items {
+  background: #111827;
+  border-top-color: #374151;
+}
+
+.dark .items-title {
+  color: #e5e7eb;
+}
+
+.dark .item-row {
+  background: #1f2937;
+  border-color: #374151;
+}
+
+.dark .item-name {
+  color: #f9fafb;
+}
+
+.dark .item-total {
+  color: #f9fafb;
+}
+
+.dark .expand-button {
+  background: #374151;
+  border-color: #4b5563;
+  color: #60a5fa;
+}
+
+.dark .expand-button:hover {
+  background: #4b5563;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .order-history-container {
+    padding: 1rem 0.75rem;
+  }
+
+  .page-title {
+    font-size: 1.75rem;
+  }
+
+  .order-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .order-meta {
+    gap: 1rem;
+  }
+
+  .meta-item {
+    font-size: 0.875rem;
+  }
+
+  .expand-button {
+    align-self: flex-start;
+  }
+
+  .item-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .item-image {
+    width: 80px;
+    height: 80px;
+  }
+
+  .item-total {
+    text-align: left;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .order-history-container {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .order-card {
+    margin: 0 -0.5rem;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .order-header {
+    padding: 1rem;
+  }
+
+  .order-items {
+    padding: 1rem;
+  }
+
+  .order-number {
+    font-size: 1.125rem;
+  }
+}
+
+/* Focus States for Accessibility */
+.expand-button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
