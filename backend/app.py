@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import sqlite3
 import hashlib
@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="dist", static_url_path="")
 app.config['SECRET_KEY'] = 'sony-audio-secret-key'
 
 CORS(app)
@@ -183,6 +183,15 @@ def can_deliver_to(city, pincode=None):
                          WHERE active = 1 AND LOWER(city)=LOWER(?) 
                          LIMIT 1''', (city,))
         return c.fetchone() is not None
+    
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, "index.html")
+
 #
 @app.route('/', methods=['GET'])
 def index():
