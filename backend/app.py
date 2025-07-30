@@ -9,12 +9,13 @@ import hmac
 from functools import wraps
 import os
 import traceback
+import bcrypt
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = Flask(__name__, static_folder="dist", static_url_path="")
-app.config['SECRET_KEY'] = 'sony-audio-secret-key'
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
 
 CORS(app)
 
@@ -22,6 +23,15 @@ CORS(app)
 from product import products_bp
 app.register_blueprint(products_bp, url_prefix="/api")
 
+#flask limiter
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"]
+)
 
 # Razorpay Configuration
 RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
@@ -270,37 +280,64 @@ def delete_delivery_area(current_user_id, area_id):
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.get_json()
-    hashed_password = hashlib.sha256(data['password'].encode()).hexdigest()
+
+    # Hash the password
+    hashed_password = bcrypt.hashpw(data['password'].encode(), bcrypt.gensalt()).decode('utf-8')
+
     try:
         with sqlite3.connect('store.db') as conn:
             c = conn.cursor()
             c.execute('INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
-                     (data['name'], data['email'], hashed_password))
+                      (data['name'], data['email'], hashed_password))
             conn.commit()
+
         return jsonify({'message': 'User created successfully'}), 201
-    except sqlite3.IntegrityError:
+
+    except sqlite3.IntegrityError as e:
+        # Optional: log the actual error
+        print(f"IntegrityError during registration: {e}")
         return jsonify({'message': 'Email already exists'}), 400
 
+    except Exception as e:
+        # Catch any other errors
+        print(f"Unexpected error during registration: {e}")
+        return jsonify({'message': 'Registration failed'}), 500
+
+
 @app.route('/api/login', methods=['POST'])
+@limiter.limit("5 per minute")
 def login():
     data = request.get_json()
-    hashed_password = hashlib.sha256(data['password'].encode()).hexdigest()
+
     with sqlite3.connect('store.db') as conn:
         c = conn.cursor()
-        c.execute('SELECT id, name, email, role FROM users WHERE email = ? AND password = ?',
-                 (data['email'], hashed_password))
+        c.execute('SELECT id, name, email, password, role FROM users WHERE email = ?', (data['email'],))
         user = c.fetchone()
-    if user:
+
+    if user and bcrypt.checkpw(data['password'].encode(), user[3].encode()):
         token = jwt.encode({
             'user_id': user[0],
             'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
         }, app.config['SECRET_KEY'], algorithm='HS256')
+
         if isinstance(token, bytes):
             token = token.decode('utf-8')
-        return jsonify({'token': token, 'user': {'id': user[0], 'name': user[1], 'email': user[2], 'role': user[3]}})
+
+        return jsonify({
+            'token': token,
+            'user': {
+                'id': user[0],
+                'name': user[1],
+                'email': user[2],
+                'role': user[4]
+            }
+        })
+
     else:
         print(f"Login failed for email: {data['email']}")
         return jsonify({'message': 'Invalid credentials'}), 401
+
+
 
 # ---------------------- PRODUCTS ----------------------
 @app.route('/api/products', methods=['GET'])
