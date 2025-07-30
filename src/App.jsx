@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
 import { ThemeProvider } from './context/ThemeContext'
@@ -18,46 +18,9 @@ import ForgotPassword from './pages/ForgotPassword'
 import OrderHistory from './pages/OrderHistory'
 import Support from './components/Support'
 import FeaturedProducts from './pages/FeaturedProducts'
+import ScrollToTop from './components/ScrolltoTop'
 
-import React from 'react';
 
-function MainLayout() {
-  const location = useLocation();
-
-  // No Footer for these paths
-  const hideFooterRoutes = [
-    '/products',
-    '/featured'
-  ];
-  // Check for exact path or, if you want, also for subroutes (e.g. /products/123)
-  const hideFooter = hideFooterRoutes.some((route) =>
-    location.pathname === route
-  );
-
-  return (
-    <>
-      <Header />
-      <main>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/product/:id" element={<ProductDetail />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/featured" element={<FeaturedProducts />} />
-          <Route path="/order-history" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
-          <Route path="/support" element={<Support />} />
-        </Routes>
-      </main>
-      {/* Conditionally render Footer */}
-      {!hideFooter && <Footer />}
-    </>
-  );
-}
 
 function App() {
   return (
@@ -66,10 +29,31 @@ function App() {
         <CartProvider>
           <div className="min-h-screen bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
             <Routes>
-              {/* Admin dashboard (no footer/layout) */}
               <Route path="/admin/*" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
-              {/* Main site with layout/header/footer */}
-              <Route path="/*" element={<MainLayout />} />
+              <Route path="/*" element={
+                <>
+                  <Header />
+                  <ScrollToTop/>
+                  <main>
+                    <Routes>
+                      <Route path="/" element={<Home />} />
+                      <Route path="/products" element={<Products />} />
+                      <Route path="/product/:id" element={<ProductDetail />} />
+                      <Route path="/cart" element={<Cart />} />
+                      <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+                      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/register" element={<Register />} />
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
+                      <Route path="/featured" element={<FeaturedProducts />} />
+                     
+                      <Route path="/order-history" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
+                      <Route path="/support" element={<Support />} />
+                    </Routes>
+                  </main>
+                  <Footer />
+                </>
+              } />
             </Routes>
           </div>
         </CartProvider>
@@ -77,5 +61,6 @@ function App() {
     </ThemeProvider>
   )
 }
+
 
 export default App

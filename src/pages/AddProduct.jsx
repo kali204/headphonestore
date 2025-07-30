@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState} from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 
@@ -16,6 +16,8 @@ const AddProduct = () => {
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
+  
+
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -26,6 +28,7 @@ const AddProduct = () => {
       console.error('Failed to add product:', err)
     }
   }
+  
 
   return (
     <div className="p-6">
