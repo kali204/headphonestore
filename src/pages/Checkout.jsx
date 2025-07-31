@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Smartphone, MapPin, Phone, CreditCard, Edit3, Check } from "lucide-react";
+import { Smartphone, MapPin, Phone, CreditCard, Edit3, Check, ArrowLeft } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
@@ -18,6 +18,7 @@ const Checkout = () => {
 
   const [deliveryAreas, setDeliveryAreas] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasValidAddress, setHasValidAddress] = useState(false);
 
   const { cart, getTotalPrice, clearCart } = useCart();
   const { user, token } = useAuth();
@@ -42,6 +43,11 @@ const Checkout = () => {
     return [...new Set(pins)];
   }, [deliveryAreas, formData.city]);
 
+  /** Check if address is complete and valid */
+  const isAddressComplete = useMemo(() => {
+    return formData.address && formData.city && formData.pincode && formData.phone;
+  }, [formData]);
+
   /** Redirect if cart is empty */
   useEffect(() => {
     if (cart.length === 0) navigate("/cart");
@@ -56,9 +62,23 @@ const Checkout = () => {
   useEffect(() => {
     try {
       const savedAddress = localStorage.getItem("savedAddress");
-      if (savedAddress) setFormData(JSON.parse(savedAddress));
+      if (savedAddress) {
+        const parsed = JSON.parse(savedAddress);
+        setFormData(parsed);
+        // Check if the saved address is complete
+        const isComplete = parsed.address && parsed.city && parsed.pincode && parsed.phone;
+        setHasValidAddress(isComplete);
+        // Don't automatically set editing to false for new users
+        setEditing(!isComplete);
+      } else {
+        // New user - no saved address, start in editing mode
+        setEditing(true);
+        setHasValidAddress(false);
+      }
     } catch (error) {
       console.warn("Invalid saved address in localStorage", error);
+      setEditing(true);
+      setHasValidAddress(false);
     }
   }, []);
 
@@ -97,8 +117,14 @@ const Checkout = () => {
     }
 
     localStorage.setItem("savedAddress", JSON.stringify(formData));
+    setHasValidAddress(true);
     setEditing(false);
     setStep(2);
+  };
+
+  /** Handle going back to address step */
+  const handleBackToAddress = () => {
+    setStep(1);
   };
 
   /** Handle payment and order creation */
@@ -195,7 +221,7 @@ const Checkout = () => {
         <div className="step-indicator">
           <div className="step-item">
             <div className={`step-circle ${step >= 1 ? 'active' : ''}`}>
-              {step > 1 ? <Check className="step-icon" /> : '1'}
+              {step > 1 && hasValidAddress ? <Check className="step-icon" /> : '1'}
             </div>
             <span className="step-label">Shipping</span>
           </div>
@@ -216,51 +242,39 @@ const Checkout = () => {
               <h2 className="step-title">Shipping Address</h2>
             </div>
 
-            {!editing ? (
+            {!editing && hasValidAddress ? (
               <div className="address-display">
-                {formData.address ? (
-                  <div className="address-card">
-                    <div className="address-info">
-                      <div className="address-row">
-                        <strong>Address:</strong> {formData.address}
-                      </div>
-                      <div className="address-row">
-                        <strong>City:</strong> {formData.city}
-                      </div>
-                      <div className="address-row">
-                        <strong>Pincode:</strong> {formData.pincode}
-                      </div>
-                      <div className="address-row">
-                        <strong>Phone:</strong> {formData.phone}
-                      </div>
+                <div className="address-card">
+                  <div className="address-info">
+                    <div className="address-row">
+                      <strong>Address:</strong> {formData.address}
                     </div>
-                    <div className="address-actions">
-                      <button
-                        onClick={() => setEditing(true)}
-                        className="btn btn-secondary"
-                      >
-                        <Edit3 className="btn-icon" />
-                        Change Address
-                      </button>
-                      <button
-                        onClick={() => setStep(2)}
-                        className="btn btn-primary"
-                      >
-                        Continue to Payment
-                      </button>
+                    <div className="address-row">
+                      <strong>City:</strong> {formData.city}
+                    </div>
+                    <div className="address-row">
+                      <strong>Pincode:</strong> {formData.pincode}
+                    </div>
+                    <div className="address-row">
+                      <strong>Phone:</strong> {formData.phone}
                     </div>
                   </div>
-                ) : (
-                  <div className="empty-address">
-                    <p>No address added yet</p>
+                  <div className="address-actions">
                     <button
                       onClick={() => setEditing(true)}
+                      className="btn btn-secondary"
+                    >
+                      <Edit3 className="btn-icon" />
+                      Change Address
+                    </button>
+                    <button
+                      onClick={() => setStep(2)}
                       className="btn btn-primary"
                     >
-                      Add Address
+                      Continue to Payment
                     </button>
                   </div>
-                )}
+                </div>
               </div>
             ) : (
               <form onSubmit={handleAddressSubmit} className="address-form">
@@ -336,9 +350,11 @@ const Checkout = () => {
                   </div>
                 </div>
 
-                <button type="submit" className="btn btn-primary btn-full">
-                  Save & Continue
-                </button>
+                <div className="form-actions">
+                  <button type="submit" className="btn btn-primary btn-full">
+                    Save & Continue to Payment
+                  </button>
+                </div>
               </form>
             )}
           </div>
@@ -348,8 +364,35 @@ const Checkout = () => {
         {step === 2 && (
           <div className="checkout-step">
             <div className="step-header">
-              <CreditCard className="step-header-icon" />
-              <h2 className="step-title">Payment Method</h2>
+              <button
+                onClick={handleBackToAddress}
+                className="btn btn-ghost btn-back"
+              >
+                <ArrowLeft className="btn-icon" />
+                Back to Address
+              </button>
+              <div className="step-header-content">
+                <CreditCard className="step-header-icon" />
+                <h2 className="step-title">Payment Method</h2>
+              </div>
+            </div>
+
+            {/* Shipping Address Summary */}
+            <div className="address-summary">
+              <h3 className="summary-title">Shipping Address</h3>
+              <div className="address-summary-card">
+                <div className="address-summary-info">
+                  <p>{formData.address}</p>
+                  <p>{formData.city}, {formData.pincode}</p>
+                  <p>Phone: {formData.phone}</p>
+                </div>
+                <button
+                  onClick={handleBackToAddress}
+                  className="btn btn-link"
+                >
+                  Change
+                </button>
+              </div>
             </div>
 
             <div className="payment-section">
