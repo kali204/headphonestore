@@ -337,6 +337,42 @@ def login():
         print(f"Login failed for email: {data['email']}")
         return jsonify({'message': 'Invalid credentials'}), 401
 
+@app.route('/api/change-password', methods=['POST'])
+def change_password():
+    data = request.get_json()
+    email = data.get('email')
+    new_password = data.get('newPassword')
+
+    if not email or not new_password:
+        return jsonify({'error': 'Email and new password are required'}), 400
+
+    try:
+        # Connect to the SQLite database
+        conn = sqlite3.connect('store.db')
+        cursor = conn.cursor()
+
+        # Check if the user exists
+        cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+        user = cursor.fetchone()
+
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        # Hash the new password
+        hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+
+        # Update the password in the database
+        cursor.execute("UPDATE users SET password = ? WHERE email = ?", (hashed_password, email))
+        conn.commit()
+
+        return jsonify({'message': 'Password changed successfully'}), 200
+
+    except Exception as e:
+        print("Error:", e)
+        return jsonify({'error': 'An error occurred while changing the password'}), 500
+
+    finally:
+        conn.close()
 
 
 # ---------------------- PRODUCTS ----------------------
