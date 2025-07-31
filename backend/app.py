@@ -337,14 +337,14 @@ def login():
         print(f"Login failed for email: {data['email']}")
         return jsonify({'message': 'Invalid credentials'}), 401
 
-@app.route('/api/forgot-password', methods=['POST'])
-def forgot_password():
+@app.route('/api/change-password', methods=['POST'])
+def change_password():
     data = request.get_json()
     email = data.get('email')
     new_password = data.get('new_password')
 
     if not email or not new_password:
-        return jsonify({'message': 'Missing fields'}), 400
+        return jsonify({'message': 'Email and new password required'}), 400
 
     with sqlite3.connect('store.db') as conn:
         c = conn.cursor()
@@ -354,11 +354,11 @@ def forgot_password():
         if not user:
             return jsonify({'message': 'User not found'}), 404
 
-        hashed_password = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode('utf-8')
-        c.execute('UPDATE users SET password = ? WHERE email = ?', (hashed_password, email))
+        hashed = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode('utf-8')
+        c.execute('UPDATE users SET password = ? WHERE email = ?', (hashed, email))
         conn.commit()
 
-    return jsonify({'message': 'Password reset successful'}), 200
+    return jsonify({'message': 'Password changed successfully'}), 200
 
 
 
