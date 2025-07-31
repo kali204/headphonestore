@@ -131,7 +131,7 @@ def init_db():
         c.execute('INSERT OR IGNORE INTO settings (id, store_name, maintenance) VALUES (1, "Headphone Store", 0)')
 
         # ---------------- Seed admin ----------------
-        admin_password = hashlib.sha256('admin123'.encode()).hexdigest()
+        admin_password = bcrypt.hashpw('admin123'.encode(), bcrypt.gensalt()).decode('utf-8')
         c.execute("""
             INSERT OR IGNORE INTO users (id, name, email, password, role)
             VALUES (1, 'Admin', 'admin@sony.com', ?, 'admin')
