@@ -386,6 +386,40 @@ def get_products():
         'image': p[4], 'rating': p[5], 'reviews': p[6],
         'description': p[7], 'specs': p[8], 'stock': p[9]
     } for p in products])
+@app.route('/api/products/<int:product_id>', methods=['PUT'])
+@token_required
+def update_product(current_user_id, product_id):
+    # Optional: Check if user is admin to allow update
+    if not is_admin(current_user_id):
+        return jsonify({'message': 'Admin access required'}), 403
+
+    data = request.get_json() or {}
+
+    # Allowed fields to update
+    allowed_fields = ['name', 'category', 'price', 'image', 'rating', 'reviews', 'description', 'specs', 'stock']
+
+    updates = []
+    values = []
+    for field in allowed_fields:
+        if field in data:
+            updates.append(f"{field} = ?")
+            values.append(data[field])
+
+    if not updates:
+        return jsonify({'message': 'Nothing to update'}), 400
+
+    values.append(product_id)
+
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+
+        # Update product
+        c.execute(f"UPDATE products SET {', '.join(updates)} WHERE id = ?", values)
+        if c.rowcount == 0:
+            return jsonify({'message': 'Product not found'}), 404
+        conn.commit()
+
+    return jsonify({'message': 'Product updated successfully'}), 200
 
 # ---------------------- ORDERS ----------------------
 @app.route('/api/orders/create', methods=['POST'])
