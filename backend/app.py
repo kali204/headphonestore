@@ -337,39 +337,29 @@ def login():
         print(f"Login failed for email: {data['email']}")
         return jsonify({'message': 'Invalid credentials'}), 401
 
-@app.route('/api/change-password', methods=['POST'])
-def change_password():
+@app.route('/api/forgot-password', methods=['POST'])
+def forgot_password():
     data = request.get_json()
-
     email = data.get('email')
     new_password = data.get('new_password')
 
     if not email or not new_password:
-        return jsonify({'message': 'Email and new password are required'}), 400
+        return jsonify({'message': 'Missing fields'}), 400
 
-    try:
-        with sqlite3.connect('store.db') as conn:
-            cursor = conn.cursor()
+    with sqlite3.connect('store.db') as conn:
+        c = conn.cursor()
+        c.execute('SELECT * FROM users WHERE email = ?', (email,))
+        user = c.fetchone()
 
-            # Check if the user exists
-            cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
-            user = cursor.fetchone()
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
 
-            if not user:
-                return jsonify({'message': 'User not found'}), 404
+        hashed_password = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode('utf-8')
+        c.execute('UPDATE users SET password = ? WHERE email = ?', (hashed_password, email))
+        conn.commit()
 
-            # Hash and decode the new password
-            hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    return jsonify({'message': 'Password reset successful'}), 200
 
-            # Update the password
-            cursor.execute("UPDATE users SET password = ? WHERE email = ?", (hashed_password, email))
-            conn.commit()
-
-        return jsonify({'message': 'Password changed successfully'}), 200
-
-    except Exception as e:
-        print("Error:", e)
-        return jsonify({'message': 'Internal server error'}), 500
 
 
 # ---------------------- PRODUCTS ----------------------
