@@ -143,11 +143,6 @@ def init_db():
             VALUES (1, 'Haldwani', NULL, 1)
         """)
 
-        c.execute("""
-CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_razorpay_order_id
-ON orders (razorpay_order_id)
-""")
-
         conn.commit()
 
 
@@ -199,57 +194,6 @@ def can_deliver_to(city, pincode=None):
                          LIMIT 1''', (city,))
         return c.fetchone() is not None
     
-def validate_order_data(data):
-    required_fields = ['amount', 'address', 'city', 'pincode', 'phone', 'items']
-    missing = [f for f in required_fields if f not in data]
-    if missing:
-        return f"Missing fields: {', '.join(missing)}"
-
-    try:
-        amount = float(data['amount'])
-        if amount <= 0:
-            return "Amount must be greater than 0"
-    except (TypeError, ValueError):
-        return "Invalid amount supplied"
-
-    if not data.get('items'):
-        return "No items in order"
-
-    city = (data.get('city') or '').strip()
-    if not city:
-        return "City is required"
-
-    if not can_deliver_to(city, data.get('pincode')):
-        return "We currently don’t deliver to this location."
-
-    return None  # No error
-
-def handle_exceptions(route_func):
-    @wraps(route_func)
-    def wrapper(*args, **kwargs):
-        try:
-            return route_func(*args, **kwargs)
-        except Exception as e:
-            app.logger.error("Unhandled exception in %s: %s", route_func.__name__, e)
-            app.logger.error(traceback.format_exc())
-            return jsonify({'message': 'Internal server error', 'error': str(e)}), 500
-    return wrapper  
-
-import logging
-from logging.handlers import RotatingFileHandler
-import os
-
-if not os.path.exists('logs'):
-    os.makedirs('logs')
-
-log_file = 'logs/app.log'
-handler = RotatingFileHandler(log_file, maxBytes=1 * 1024 * 1024, backupCount=5)
-handler.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
-handler.setFormatter(formatter)
-app.logger.addHandler(handler)
-app.logger.setLevel(logging.INFO)
-
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def serve(path):
@@ -410,7 +354,6 @@ def get_products():
 
 # ---------------------- ORDERS ----------------------
 @app.route('/api/orders/create', methods=['POST'])
-@handle_exceptions
 @token_required
 def create_order(current_user_id):
     try:
@@ -425,18 +368,15 @@ def create_order(current_user_id):
 
         try:
             amount = float(data['amount'])
-            if amount <= 0:
-                return jsonify({'message': 'Amount must be greater than 0'}), 400
         except (TypeError, ValueError):
             return jsonify({'message': 'Invalid amount supplied'}), 400
 
-        items = data.get('items')
-        if not isinstance(items, list) or not items:
-            return jsonify({'message': 'Items must be a non-empty list'}), 400
+        if amount <= 0:
+            return jsonify({'message': 'Amount must be greater than 0'}), 400
 
-        for i, item in enumerate(items):
-            if not all(k in item for k in ('product_id', 'quantity', 'price')):
-                return jsonify({'message': f'Missing item fields in item #{i+1}'}), 400
+        items = data.get('items', [])
+        if not items:
+            return jsonify({'message': 'No items in order'}), 400
 
         city = (data.get('city') or '').strip()
         if not city:
@@ -456,25 +396,24 @@ def create_order(current_user_id):
             app.logger.exception("Razorpay order creation failed")
             return jsonify({'message': 'Payment gateway error', 'error': str(rp_err)}), 502
 
-        # ----- Save order to DB -----
-        try:
-            with sqlite3.connect('store.db') as conn:
-                c = conn.cursor()
-                c.execute('''INSERT INTO orders (user_id, total, address, city, pincode, phone, razorpay_order_id)
-                             VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                          (current_user_id, amount, data['address'], city,
-                           data['pincode'], data['phone'], razorpay_order['id']))
-                order_id = c.lastrowid
+        # ----- Save order -----
+        with sqlite3.connect('store.db') as conn:
+            c = conn.cursor()
+            c.execute('''INSERT INTO orders (user_id, total, address, city, pincode, phone, razorpay_order_id)
+                         VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                      (current_user_id, amount, data['address'], city,
+                       data['pincode'], data['phone'], razorpay_order['id']))
+            order_id = c.lastrowid
 
-                for item in items:
-                    c.execute('''INSERT INTO order_items (order_id, product_id, quantity, price)
-                                 VALUES (?, ?, ?, ?)''',
+            for item in items:
+                try:
+                    c.execute('INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
                               (order_id, item['product_id'], item['quantity'], item['price']))
+                except Exception as item_err:
+                    app.logger.exception("Error inserting order item: %s", item)
+                    raise item_err
 
-                conn.commit()
-        except Exception as db_err:
-            app.logger.exception("Failed to save order to DB")
-            return jsonify({'message': 'Database error', 'error': str(db_err)}), 500
+            conn.commit()
 
         return jsonify({'razorpay_order_id': razorpay_order['id'], 'order_id': order_id}), 201
 
@@ -483,41 +422,29 @@ def create_order(current_user_id):
         app.logger.error(traceback.format_exc())
         return jsonify({'message': 'Failed to create order', 'error': str(e)}), 500
 
-
 @app.route('/api/orders/verify', methods=['POST'])
-@handle_exceptions
 @token_required
 def verify_payment(current_user_id):
+    data = request.get_json()
     try:
-        data = request.get_json()
-        required_fields = ['razorpay_order_id', 'razorpay_payment_id', 'razorpay_signature']
-        if not all(k in data for k in required_fields):
-            return jsonify({'message': 'Missing fields for verification'}), 400
-
-        expected_signature = hmac.new(
+        signature = hmac.new(
             RAZORPAY_KEY_SECRET.encode(),
             f"{data['razorpay_order_id']}|{data['razorpay_payment_id']}".encode(),
             hashlib.sha256
         ).hexdigest()
 
-        if hmac.compare_digest(expected_signature, data['razorpay_signature']):
-            try:
-                with sqlite3.connect('store.db') as conn:
-                    c = conn.cursor()
-                    c.execute('''UPDATE orders 
-                                 SET status = 'completed', razorpay_payment_id = ?
-                                 WHERE razorpay_order_id = ?''',
-                              (data['razorpay_payment_id'], data['razorpay_order_id']))
-                    conn.commit()
-                return jsonify({'message': 'Payment verified successfully'}), 200
-            except Exception as db_err:
-                app.logger.exception("Failed to update order status")
-                return jsonify({'message': 'Database update failed', 'error': str(db_err)}), 500
+        if signature == data['razorpay_signature']:
+            with sqlite3.connect('store.db') as conn:
+                c = conn.cursor()
+                c.execute('''UPDATE orders SET status = 'completed', razorpay_payment_id = ? 
+                             WHERE razorpay_order_id = ?''',
+                          (data['razorpay_payment_id'], data['razorpay_order_id']))
+                conn.commit()
+            return jsonify({'message': 'Payment verified successfully'}), 200
         else:
-            return jsonify({'message': 'Invalid payment signature'}), 400
-
+            return jsonify({'message': 'Invalid signature'}), 400
     except Exception as e:
-        app.logger.error("Payment verification error: %s", e)
+        print("Payment verification error:", e)
         return jsonify({'message': 'Payment verification failed', 'error': str(e)}), 500
 
 # ---------------------- ADMIN STATS ----------------------
