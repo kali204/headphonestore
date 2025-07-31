@@ -146,18 +146,29 @@ const ProductsAdmin = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('https://headphonestore-cmeo.onrender.com/api/products')
+      const token = localStorage.getItem('token')
+      const response = await axios.get('https://headphonestore-cmeo.onrender.com/api/products', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
       setProducts(response.data)
     } catch (error) {
       console.error('Failed to fetch products:', error)
     }
   }
 
-  // Delete handler
+  // Delete handler - FIXED template literal syntax
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        await axios.delete('https://headphonestore-cmeo.onrender.com/api/products/${id}')
+        const token = localStorage.getItem('token')
+        // Using backticks for template literal
+        await axios.delete(`https://headphonestore-cmeo.onrender.com/api/products/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
         fetchProducts()
       } catch (error) {
         console.error('Failed to delete product:', error)
@@ -207,7 +218,8 @@ const ProductsAdmin = () => {
                 <td className="px-6 py-4">
                   <div className="flex space-x-2">
                     <button
-                      onClick={() => navigate('/admin/edit-product/${product.id}')}
+                      // FIXED - Using backticks for template literal
+                      onClick={() => navigate(`/admin/edit-product/${product.id}`)}
                       className="text-blue-600 hover:text-blue-800"
                     >
                       <Edit className="h-4 w-4" />
@@ -228,6 +240,7 @@ const ProductsAdmin = () => {
     </div>
   )
 }
+
 
 
 
