@@ -420,7 +420,20 @@ def update_product(current_user_id, product_id):
         conn.commit()
 
     return jsonify({'message': 'Product updated successfully'}), 200
+@app.route('/api/products/<int:product_id>', methods=['DELETE'])
+@token_required
+def delete_product(current_user_id, product_id):
+    if not is_admin(current_user_id):
+        return jsonify({'message': 'Admin access required'}), 403
 
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute('DELETE FROM products WHERE id = ?', (product_id,))
+        if c.rowcount == 0:
+            return jsonify({'message': 'Product not found'}), 404
+        conn.commit()
+
+    return jsonify({'message': 'Product deleted successfully'}), 200
 # ---------------------- ORDERS ----------------------
 @app.route('/api/orders/create', methods=['POST'])
 @token_required
