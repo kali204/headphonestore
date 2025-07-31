@@ -374,19 +374,6 @@ def change_password():
 
 
 
-# ---------------------- PRODUCTS ----------------------
-@app.route('/api/products', methods=['GET'])
-def get_products():
-    with sqlite3.connect('store.db') as conn:
-        c = conn.cursor()
-        c.execute('SELECT * FROM products')
-        products = c.fetchall()
-    return jsonify([{
-        'id': p[0], 'name': p[1], 'category': p[2], 'price': p[3],
-        'image': p[4], 'rating': p[5], 'reviews': p[6],
-        'description': p[7], 'specs': p[8], 'stock': p[9]
-    } for p in products])
-
 # ---------------------- ORDERS ----------------------
 @app.route('/api/orders/create', methods=['POST'])
 @token_required
@@ -780,106 +767,6 @@ def update_settings(current_user_id):
         conn.commit()
 
     return jsonify({'message': 'Settings updated successfully'})
-#----------------admin product----------------------------
-@app.route('/api/products', methods=['POST'])
-@token_required
-def add_product(current_user_id):
-    # Only admin can add products
-    if not is_admin(current_user_id):
-        return jsonify({'message': 'Admin access required'}), 403
-
-    data = request.get_json() or {}
-
-    # Required fields validation
-    required_fields = ['name', 'category', 'price']
-    missing_fields = [f for f in required_fields if not data.get(f)]
-    if missing_fields:
-        return jsonify({'message': f'Missing required fields: {", ".join(missing_fields)}'}), 400
-
-    # Extract and validate price and stock
-    try:
-        price = float(data['price'])
-    except (ValueError, TypeError):
-        return jsonify({'message': 'Price must be a valid number'}), 400
-
-    try:
-        stock = int(data.get('stock', 0))
-    except (ValueError, TypeError):
-        stock = 0
-
-    # Prepare other optional fields with defaults
-    name = data['name']
-    category = data['category']
-    image = data.get('image')
-    description = data.get('description')
-    rating = float(data.get('rating', 0)) if 'rating' in data else 0
-    reviews = int(data.get('reviews', 0)) if 'reviews' in data else 0
-    specs = data.get('specs')
-
-    # Insert into DB
-    with sqlite3.connect(DB_PATH) as conn:
-        c = conn.cursor()
-        try:
-            c.execute("""
-                INSERT INTO products
-                (name, category, price, image, rating, reviews, description, specs, stock)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (name, category, price, image, rating, reviews, description, specs, stock))
-            conn.commit()
-            new_product_id = c.lastrowid
-        except Exception as e:
-            return jsonify({'message': 'Failed to add product', 'error': str(e)}), 500
-
-    return jsonify({'message': 'Product added successfully', 'product_id': new_product_id}), 201
-
-@app.route('/api/admin/products/<int:product_id>', methods=['PUT'])
-@token_required
-def update_product(current_user_id, product_id):
-    # Optional: Check if user is admin to allow update
-    if not is_admin(current_user_id):
-        return jsonify({'message': 'Admin access required'}), 403
-
-    data = request.get_json() or {}
-
-    # Allowed fields to update
-    allowed_fields = ['name', 'category', 'price', 'image', 'rating', 'reviews', 'description', 'specs', 'stock']
-
-    updates = []
-    values = []
-    for field in allowed_fields:
-        if field in data:
-            updates.append(f"{field} = ?")
-            values.append(data[field])
-
-    if not updates:
-        return jsonify({'message': 'Nothing to update'}), 400
-
-    values.append(product_id)
-
-    with sqlite3.connect(DB_PATH) as conn:
-        c = conn.cursor()
-
-        # Update product
-        c.execute(f"UPDATE products SET {', '.join(updates)} WHERE id = ?", values)
-        if c.rowcount == 0:
-            return jsonify({'message': 'Product not found'}), 404
-        conn.commit()
-
-    return jsonify({'message': 'Product updated successfully'}), 200
-@app.route('/api/admin/products/<int:product_id>', methods=['DELETE'])
-@token_required
-def delete_product(current_user_id, product_id):
-    if not is_admin(current_user_id):
-        return jsonify({'message': 'Admin access required'}), 403
-
-    with sqlite3.connect(DB_PATH) as conn:
-        c = conn.cursor()
-        c.execute('DELETE FROM products WHERE id = ?', (product_id,))
-        if c.rowcount == 0:
-            return jsonify({'message': 'Product not found'}), 404
-        conn.commit()
-
-    return jsonify({'message': 'Product deleted successfully'}), 200
 
 # ---------------------- PUBLIC SETTINGS ----------------------
 @app.route('/api/settings/public', methods=['GET'])
