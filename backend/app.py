@@ -483,6 +483,10 @@ def verify_payment(current_user_id):
         return jsonify({'message': 'Payment verification failed', 'error': str(e)}), 500
 
 # ---------------------- ADMIN STATS ----------------------
+@app.route('/admin')
+def admin():
+    return send_from_directory(app.static_folder, 'index.html')
+
 @app.route('/api/admin/stats', methods=['GET'])
 @token_required
 def get_admin_stats(current_user_id):
