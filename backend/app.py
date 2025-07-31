@@ -38,6 +38,17 @@ RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+DB_PATH = os.path.join(BASE_DIR, "store.db")
+@app.route('/api/debug/users', methods=['GET'])
+def debug_list_users():
+    with sqlite3.connect('store.db') as conn:
+        c = conn.cursor()
+        c.execute('SELECT id, name, email FROM users')
+        users = c.fetchall()
+    return jsonify([{'id': u[0], 'name': u[1], 'email': u[2]} for u in users])
+
+
 # ---------------------- DATABASE SETUP ----------------------
 def init_db():
     with sqlite3.connect('store.db') as conn:
@@ -348,14 +359,15 @@ def change_password():
 
     with sqlite3.connect('store.db') as conn:
         c = conn.cursor()
-        c.execute('SELECT * FROM users WHERE email = ?', (email,))
+        # Using LOWER() to make comparison case-insensitive
+        c.execute('SELECT * FROM users WHERE LOWER(email) = LOWER(?)', (email,))
         user = c.fetchone()
 
         if not user:
             return jsonify({'message': 'User not found'}), 404
 
         hashed = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode('utf-8')
-        c.execute('UPDATE users SET password = ? WHERE email = ?', (hashed, email))
+        c.execute('UPDATE users SET password = ? WHERE LOWER(email) = LOWER(?)', (hashed, email))
         conn.commit()
 
     return jsonify({'message': 'Password changed successfully'}), 200
