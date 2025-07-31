@@ -340,15 +340,15 @@ def login():
 @app.route('/api/change-password', methods=['POST'])
 def change_password():
     data = request.get_json()
+
     email = data.get('email')
-    new_password = data.get('newPassword')
+    new_password = data.get('new_password')
 
     if not email or not new_password:
-        return jsonify({'error': 'Email and new password are required'}), 400
+        return jsonify({'message': 'Email and new password are required'}), 400
 
     try:
-        # Connect to the SQLite database
-        conn = sqlite3.connect('store.db')
+        conn = sqlite3.connect('your_database.db')
         cursor = conn.cursor()
 
         # Check if the user exists
@@ -356,24 +356,21 @@ def change_password():
         user = cursor.fetchone()
 
         if not user:
-            return jsonify({'error': 'User not found'}), 404
+            return jsonify({'message': 'User not found'}), 404
 
         # Hash the new password
         hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
 
-        # Update the password in the database
+        # Update the password in DB
         cursor.execute("UPDATE users SET password = ? WHERE email = ?", (hashed_password, email))
         conn.commit()
+        conn.close()
 
         return jsonify({'message': 'Password changed successfully'}), 200
 
     except Exception as e:
         print("Error:", e)
-        return jsonify({'error': 'An error occurred while changing the password'}), 500
-
-    finally:
-        conn.close()
-
+        return jsonify({'message': 'Internal server error'}), 500
 
 # ---------------------- PRODUCTS ----------------------
 @app.route('/api/products', methods=['GET'])
