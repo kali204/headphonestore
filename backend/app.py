@@ -779,14 +779,11 @@ def public_settings():
 # ---------------------- GET USER ORDERS (OPTIMIZED) ----------------------
 @app.route('/api/order-history', methods=['GET'])
 @token_required
-def get_user_orders(current_user_id):
+def order_history(current_user_id):
     with sqlite3.connect('store.db') as conn:
-        # This makes fetchall() return a list of dictionary-like objects
-        # It's more readable than using numeric indexes like row[0]
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
 
-        # The single, powerful query with JOINs
         c.execute('''
             SELECT 
                 o.id, o.total, o.status, o.created_at,
@@ -800,32 +797,26 @@ def get_user_orders(current_user_id):
         
         rows = c.fetchall()
 
-    # A dictionary to help us group items by their order_id
     orders_dict = {}
     for row in rows:
         order_id = row['id']
         
-        # If we haven't seen this order ID yet, create its main structure
         if order_id not in orders_dict:
             orders_dict[order_id] = {
                 'id': order_id,
                 'total': row['total'],
                 'status': row['status'],
                 'created_at': row['created_at'],
-                'items': []  # Start with an empty list for items
+                'items': []
             }
         
-        # Add the current item to this order's item list
         orders_dict[order_id]['items'].append({
             'name': row['name'],
             'quantity': row['quantity'],
             'price': row['price']
         })
     
-    # The final result is the list of values from our dictionary
-    result = list(orders_dict.values())
-    
-    return jsonify(result)
+    return jsonify(list(orders_dict.values()))
 @app.route('/api/orders/<int:order_id>/cancel', methods=['PATCH'])
 @token_required
 def cancel_order(current_user_id, order_id):
