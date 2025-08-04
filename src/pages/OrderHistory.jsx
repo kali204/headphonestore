@@ -42,12 +42,13 @@ const OrderHistory = () => {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(
-          "https://headphonestore-cmeo.onrender.com/api/order-history",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const res = await fetch("https://headphonestore-cmeo.onrender.com/order-history", {
+  method: "GET",
+  headers: {
+    "Authorization": `Bearer ${token}`,
+    "Content-Type": "application/json"
+  }
+});
 
         if (!res.ok) {
           throw new Error("Failed to fetch orders. Please try again later.");
