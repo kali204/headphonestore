@@ -36,7 +36,7 @@ const OrderHistory = () => {
       setError('');
       try {
         
-        const res = await fetch('https://headphonestore-cmeo.onrender.com/api/orders', {
+        const res = await fetch('https://headphonestore-cmeo.onrender.com/api/order-history', {
           headers: { Authorization: `Bearer ${token}` },
         });
 
