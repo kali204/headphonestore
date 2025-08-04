@@ -290,23 +290,25 @@ def register():
 
     # Hash the password
     hashed_password = bcrypt.hashpw(data['password'].encode(), bcrypt.gensalt()).decode('utf-8')
+    role = data.get('role', 'customer')  # Default to customer if not provided
+    created_at = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
 
     try:
         with sqlite3.connect('store.db') as conn:
             c = conn.cursor()
-            c.execute('INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
-                      (data['name'], data['email'], hashed_password))
+            c.execute('''
+                INSERT INTO users (name, email, password, role, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (data['name'], data['email'], hashed_password, role, created_at))
             conn.commit()
 
         return jsonify({'message': 'User created successfully'}), 201
 
     except sqlite3.IntegrityError as e:
-        # Optional: log the actual error
         print(f"IntegrityError during registration: {e}")
         return jsonify({'message': 'Email already exists'}), 400
 
     except Exception as e:
-        # Catch any other errors
         print(f"Unexpected error during registration: {e}")
         return jsonify({'message': 'Registration failed'}), 500
 
@@ -342,6 +344,7 @@ def login():
     else:
         print(f"Login failed for email: {data['email']}")
         return jsonify({'message': 'Invalid credentials'}), 401
+
 
 @app.route('/api/change-password', methods=['POST'])
 def change_password():
