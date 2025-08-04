@@ -23,10 +23,6 @@ CORS(app)
 from product import products_bp
 app.register_blueprint(products_bp, url_prefix="/api")
 
-#flask limiter
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-
 
 
 # Razorpay Configuration
@@ -164,21 +160,26 @@ def _ensure_column(cur, table, column, coltype):
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith("Bearer "):
+        token = None
+        if 'Authorization' in request.headers:
+            parts = request.headers['Authorization'].split(" ")
+            if len(parts) == 2 and parts[0] == "Bearer":
+                token = parts[1]
+
+        if not token:
             return jsonify({'message': 'Token missing'}), 401
-        token = auth_header.split(' ')[1]
+
         try:
-            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
             current_user_id = data['user_id']
         except jwt.ExpiredSignatureError:
             return jsonify({'message': 'Token expired'}), 401
-        except Exception as e:
-            print(f"Token error: {e}")
-            return jsonify({'message': 'Token invalid'}), 401
-        return f(current_user_id, *args, **kwargs)
-    return decorated
+        except jwt.InvalidTokenError:
+            return jsonify({'message': 'Invalid token'}), 401
 
+        return f(current_user_id, *args, **kwargs)
+
+    return decorated
 
 def is_admin(user_id):
     with sqlite3.connect('store.db') as conn:
@@ -779,7 +780,7 @@ def public_settings():
 
 
 
-# ---------------------- GET USER ORDERS (OPTIMIZED) ----------------------
+# ---------------------- GET USER ORDERS ----------------------
 @app.route('/order-history', methods=['GET'])
 @token_required
 def order_history(current_user_id):
@@ -803,7 +804,6 @@ def order_history(current_user_id):
     orders_dict = {}
     for row in rows:
         order_id = row['id']
-        
         if order_id not in orders_dict:
             orders_dict[order_id] = {
                 'id': order_id,
@@ -819,31 +819,28 @@ def order_history(current_user_id):
             'price': row['price']
         })
     
-    return jsonify(list(orders_dict.values()))
+    return jsonify(list(orders_dict.values())), 200
+
+# ---------------------- CANCEL ORDER ----------------------
 @app.route('/api/orders/<int:order_id>/cancel', methods=['PATCH'])
 @token_required
 def cancel_order(current_user_id, order_id):
     with sqlite3.connect('store.db') as conn:
-        conn.row_factory = sqlite3.Row # Makes rows accessible by column name
+        conn.row_factory = sqlite3.Row
         c = conn.cursor()
 
-        # Attempt to update the order only if all conditions are met in one go
         c.execute("""
             UPDATE orders
             SET status = 'cancelled'
             WHERE id = ? AND user_id = ? AND status = 'pending'
         """, (order_id, current_user_id))
 
-        # c.rowcount will be 1 if a row was updated, and 0 otherwise.
         if c.rowcount == 0:
-            # If no rows were updated, figure out why.
-            # Does the order exist and belong to the user?
             c.execute("SELECT status FROM orders WHERE id = ? AND user_id = ?", (order_id, current_user_id))
             row = c.fetchone()
             if not row:
                 return jsonify({'message': 'Order not found or access denied'}), 404
             else:
-                # If it exists, the status must not have been 'pending'
                 return jsonify({'message': 'Only pending orders can be cancelled'}), 400
 
         conn.commit()
