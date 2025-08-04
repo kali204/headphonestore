@@ -45,7 +45,7 @@ const Register = () => {
               placeholder="Full Name"
               value={formData.name}
               onChange={(e) => setFormData({...formData, name: e.target.value})}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-sony focus:border-transparent"
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-sony focus:border-transparent text-black"
               required
             />
             <input
@@ -53,7 +53,7 @@ const Register = () => {
               placeholder="Email"
               value={formData.email}
               onChange={(e) => setFormData({...formData, email: e.target.value})}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-sony focus:border-transparent"
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-sony focus:border-transparent text-black"
               required
             />
             <input
@@ -61,7 +61,7 @@ const Register = () => {
               placeholder="Password"
               value={formData.password}
               onChange={(e) => setFormData({...formData, password: e.target.value})}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-sony focus:border-transparent"
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-sony focus:border-transparent text-black"
               required
             />
           </div>

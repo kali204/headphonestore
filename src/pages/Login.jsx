@@ -68,7 +68,7 @@ const Login = () => {
               type="email"
               autoComplete="email"
               required
-              className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-sony focus:border-transparent transition"
+              className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-sony focus:border-transparent transition text-black"
               placeholder="Email address"
               value={formData.email}
               onChange={handleChange}
@@ -87,7 +87,7 @@ const Login = () => {
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               required
-              className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-sony focus:border-transparent transition"
+              className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-sony focus:border-transparent transition text-black"
               placeholder="Password"
               value={formData.password}
               onChange={handleChange}
