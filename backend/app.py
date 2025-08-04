@@ -27,11 +27,7 @@ app.register_blueprint(products_bp, url_prefix="/api")
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["200 per day", "50 per hour"]
-)
+
 
 # Razorpay Configuration
 RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
@@ -316,7 +312,6 @@ def register():
 
 
 @app.route('/api/login', methods=['POST'])
-@limiter.limit("5 per minute")
 def login():
     data = request.get_json()
 
