@@ -784,7 +784,7 @@ def public_settings():
 
 
 # ---------------------- GET USER ORDERS ----------------------
-@app.route('/api/orders', methods=['GET'])
+@app.route('/api/order-history', methods=['GET'])
 @token_required
 def get_user_orders(current_user_id):
     with sqlite3.connect('store.db') as conn:
