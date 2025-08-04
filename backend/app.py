@@ -482,7 +482,7 @@ def get_admin_stats(current_user_id):
         c = conn.cursor()
 
         # Dynamic WHERE clause
-        where = 'WHERE status = "completed"'
+        where = 'WHERE status IN ("completed", "pending", "processing")'
         params = []
         if date_from:
             where += ' AND date(created_at) >= date(?)'
