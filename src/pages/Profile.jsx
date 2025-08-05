@@ -1,5 +1,5 @@
 import { useAuth } from "../context/AuthContext";
-import { Shield, History, Settings } from "lucide-react";
+import { Shield } from "lucide-react";
 import "./css/Profile.css";
 
 const Profile = () => {
@@ -9,19 +9,17 @@ const Profile = () => {
     <div className="profile-container">
       <div className="profile-card">
         <h1 className="profile-title">Profile</h1>
-        
+
         <div className="profile-info">
           <div className="info-item">
             <label className="info-label">Name</label>
             <p className="info-value">{user.name}</p>
           </div>
-          
+
           <div className="info-item">
             <label className="info-label">Email</label>
             <p className="info-value">{user.email}</p>
           </div>
-          
-         
         </div>
 
         <button onClick={logout} className="logout-btn">
@@ -37,12 +35,6 @@ const Profile = () => {
             Admin Dashboard
           </a>
         )}
-        
-        {/* Order History for All Users */}
-        <a href="/order-history" className="order-history-btn">
-          <History className="btn-icon" />
-          View Order History
-        </a>
       </div>
     </div>
   );
