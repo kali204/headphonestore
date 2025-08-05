@@ -7,7 +7,7 @@ const OrderHistory = () => {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const token = localStorage.getItem("authToken");
+        const token = localStorage.getItem("token"); // Use consistent key "token"
         if (!token) {
           setError("Token not found. Please login.");
           return;
@@ -35,7 +35,7 @@ const OrderHistory = () => {
   }, []);
 
   const cancelOrder = async (orderId) => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token"); // Consistent key usage
 
     try {
       const res = await fetch(`https://headphonestore-cmeo.onrender.com/api/orders/${orderId}/cancel`, {
@@ -52,7 +52,7 @@ const OrderHistory = () => {
         alert(data.message || "Failed to cancel order");
       } else {
         alert(data.message);
-        // Refresh orders
+        // Refresh orders to reflect cancelled status
         setOrders((prev) =>
           prev.map((order) =>
             order.id === orderId ? { ...order, status: "cancelled" } : order
@@ -71,10 +71,18 @@ const OrderHistory = () => {
       {orders.length === 0 && !error && <p>No orders found.</p>}
       {orders.map((order) => (
         <div key={order.id} className="border p-4 mb-4 rounded shadow-sm">
-          <p><strong>Order ID:</strong> {order.id}</p>
-          <p><strong>Status:</strong> {order.status}</p>
-          <p><strong>Total:</strong> ₹{order.total}</p>
-          <p><strong>Date:</strong> {new Date(order.created_at).toLocaleString()}</p>
+          <p>
+            <strong>Order ID:</strong> {order.id}
+          </p>
+          <p>
+            <strong>Status:</strong> {order.status}
+          </p>
+          <p>
+            <strong>Total:</strong> ₹{order.total}
+          </p>
+          <p>
+            <strong>Date:</strong> {new Date(order.created_at).toLocaleString()}
+          </p>
           <div className="mt-2">
             <strong>Items:</strong>
             <ul className="list-disc ml-6">

@@ -41,23 +41,23 @@ export const AuthProvider = ({ children }) => {
     return () => axios.interceptors.response.eject(interceptor)
   }, [])
 
-  // ✅ Login function
-  const login = async (credentials) => {
-    try {
-      const { data } = await axios.post(`${BASE_URL}/api/login`, credentials)
-      const { token, user } = data
+ const login = async (credentials) => {
+  try {
+    const { data } = await axios.post(`${BASE_URL}/api/login`, credentials)
+    const { token, user } = data
 
-      setToken(token)
-      setUser(user)
-      localStorage.setItem('authToken', token)
-      localStorage.setItem('user', JSON.stringify(user))
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    setToken(token)
+    setUser(user)
+    localStorage.setItem('token', token)  // Use 'token' as the key
+    localStorage.setItem('user', JSON.stringify(user))
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
 
-      return { success: true }
-    } catch (error) {
-      return { success: false, message: error.response?.data?.message || 'Login failed' }
-    }
+    return { success: true }
+  } catch (error) {
+    return { success: false, message: error.response?.data?.message || 'Login failed' }
   }
+}
+
 
   // ✅ Register function
   const register = async (userData) => {
