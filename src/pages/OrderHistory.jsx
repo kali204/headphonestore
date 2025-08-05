@@ -7,7 +7,7 @@ const OrderHistory = () => {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem("authToken");
         if (!token) {
           setError("Token not found. Please login.");
           return;
