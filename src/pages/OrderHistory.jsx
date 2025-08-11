@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 const OrderHistory = () => {
   const [orders, setOrders] = useState([]);
@@ -7,17 +7,20 @@ const OrderHistory = () => {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const token = localStorage.getItem("token"); // Use consistent key "token"
+        const token = localStorage.getItem("token");
         if (!token) {
           setError("Token not found. Please login.");
           return;
         }
 
-        const res = await fetch("https://headphonestore-cmeo.onrender.com/order-history", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const res = await fetch(
+          "https://headphonestore-cmeo.onrender.com/order-history",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const data = await res.json();
 
@@ -25,6 +28,7 @@ const OrderHistory = () => {
           setError(data.message || "Failed to fetch order history");
         } else {
           setOrders(data);
+          setError("");
         }
       } catch (err) {
         setError("Something went wrong");
@@ -35,16 +39,19 @@ const OrderHistory = () => {
   }, []);
 
   const cancelOrder = async (orderId) => {
-    const token = localStorage.getItem("token"); // Consistent key usage
+    const token = localStorage.getItem("token");
 
     try {
-      const res = await fetch(`https://headphonestore-cmeo.onrender.com/api/orders/${orderId}/cancel`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await fetch(
+        `https://headphonestore-cmeo.onrender.com/api/orders/${orderId}/cancel`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       const data = await res.json();
 
@@ -52,14 +59,13 @@ const OrderHistory = () => {
         alert(data.message || "Failed to cancel order");
       } else {
         alert(data.message);
-        // Refresh orders to reflect cancelled status
         setOrders((prev) =>
           prev.map((order) =>
             order.id === orderId ? { ...order, status: "cancelled" } : order
           )
         );
       }
-    } catch (err) {
+    } catch {
       alert("Error cancelling order");
     }
   };
@@ -83,6 +89,9 @@ const OrderHistory = () => {
           <p>
             <strong>Date:</strong> {new Date(order.created_at).toLocaleString()}
           </p>
+          <p>
+            <strong>Payment Method:</strong> {order.payment_method || "N/A"}
+          </p>
           <div className="mt-2">
             <strong>Items:</strong>
             <ul className="list-disc ml-6">
@@ -93,7 +102,8 @@ const OrderHistory = () => {
               ))}
             </ul>
           </div>
-          {order.status === "pending" && (
+          {(order.status === "pending" ||
+            (order.status === "completed" )) && (
             <button
               className="mt-3 bg-red-500 text-white px-3 py-1 rounded"
               onClick={() => cancelOrder(order.id)}

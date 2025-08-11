@@ -165,10 +165,8 @@ def token_required(f):
             parts = request.headers['Authorization'].split(" ")
             if len(parts) == 2 and parts[0] == "Bearer":
                 token = parts[1]
-
         if not token:
             return jsonify({'message': 'Token missing'}), 401
-
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
             current_user_id = data['user_id']
@@ -176,9 +174,7 @@ def token_required(f):
             return jsonify({'message': 'Token expired'}), 401
         except jwt.InvalidTokenError:
             return jsonify({'message': 'Invalid token'}), 401
-
         return f(current_user_id, *args, **kwargs)
-
     return decorated
 
 def is_admin(user_id):
@@ -787,9 +783,8 @@ def order_history(current_user_id):
     with sqlite3.connect('store.db') as conn:
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
-
         c.execute('''
-            SELECT 
+            SELECT
                 o.id, o.total, o.status, o.created_at,
                 p.name, oi.quantity, oi.price
             FROM orders o
@@ -798,54 +793,54 @@ def order_history(current_user_id):
             WHERE o.user_id = ?
             ORDER BY o.created_at DESC, o.id
         ''', (current_user_id,))
-        
         rows = c.fetchall()
 
-    orders_dict = {}
-    for row in rows:
-        order_id = row['id']
-        if order_id not in orders_dict:
-            orders_dict[order_id] = {
-                'id': order_id,
-                'total': row['total'],
-                'status': row['status'],
-                'created_at': row['created_at'],
-                'items': []
-            }
-        
-        orders_dict[order_id]['items'].append({
-            'name': row['name'],
-            'quantity': row['quantity'],
-            'price': row['price']
-        })
-    
-    return jsonify(list(orders_dict.values())), 200
-
-# ---------------------- CANCEL ORDER ----------------------
+        orders_dict = {}
+        for row in rows:
+            order_id = row['id']
+            if order_id not in orders_dict:
+                orders_dict[order_id] = {
+                    'id': order_id,
+                    'total': row['total'],
+                    'status': row['status'],
+                    'created_at': row['created_at'],
+                    'items': []
+                }
+            orders_dict[order_id]['items'].append({
+                'name': row['name'],
+                'quantity': row['quantity'],
+                'price': row['price']
+            })
+        # Return list of orders with their nested items
+        return jsonify(list(orders_dict.values())), 200
 @app.route('/api/orders/<int:order_id>/cancel', methods=['PATCH'])
 @token_required
 def cancel_order(current_user_id, order_id):
     with sqlite3.connect('store.db') as conn:
-        conn.row_factory = sqlite3.Row
         c = conn.cursor()
+        # Fetch order status and user id
+        c.execute('SELECT status, user_id FROM orders WHERE id = ?', (order_id,))
+        order = c.fetchone()
 
-        c.execute("""
-            UPDATE orders
-            SET status = 'cancelled'
-            WHERE id = ? AND user_id = ? AND status = 'pending'
-        """, (order_id, current_user_id))
+        if not order:
+            return jsonify({'message': 'Order not found'}), 404
 
-        if c.rowcount == 0:
-            c.execute("SELECT status FROM orders WHERE id = ? AND user_id = ?", (order_id, current_user_id))
-            row = c.fetchone()
-            if not row:
-                return jsonify({'message': 'Order not found or access denied'}), 404
-            else:
-                return jsonify({'message': 'Only pending orders can be cancelled'}), 400
+        status, user_id = order
 
+        # Check if current user owns the order
+        if user_id != current_user_id:
+            return jsonify({'message': 'Unauthorized'}), 403
+
+        # Allow cancellation only if status is pending or completed
+        if status not in ('pending', 'completed'):
+            return jsonify({'message': 'Only pending or completed orders can be cancelled'}), 400
+
+        # Update status to cancelled
+        c.execute('UPDATE orders SET status = ? WHERE id = ?', ('cancelled', order_id))
         conn.commit()
 
-    return jsonify({'message': 'Order successfully cancelled'}), 200
+    return jsonify({'message': 'Order cancelled successfully'}), 200
+
 
 # ---------------------- MAIN ----------------------
 if __name__ == '__main__':

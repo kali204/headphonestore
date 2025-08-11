@@ -1,5 +1,6 @@
 import { useAuth } from "../context/AuthContext";
-import { Shield } from "lucide-react";
+import { Shield, History } from "lucide-react";
+import { Link } from "react-router-dom";
 import "./css/Profile.css";
 
 const Profile = () => {
@@ -30,11 +31,21 @@ const Profile = () => {
       <div className="profile-actions">
         {/* Admin Dashboard Link for Admin Users */}
         {user.role === 'admin' && (
-          <a href="/admin" className="admin-dashboard-btn">
+          <Link to="/admin" className="admin-dashboard-btn">
             <Shield className="btn-icon" />
             Admin Dashboard
-          </a>
+          </Link>
         )}
+
+        {/* Order History Link for All Users */}
+        <Link
+          to="/order-history"
+          className="order-history-btn"
+          style={{ marginTop: '10px', display: 'inline-block' }}
+        >
+          <History className="btn-icon" />
+          View Order History
+        </Link>
       </div>
     </div>
   );
