@@ -5,6 +5,8 @@ import os, datetime, traceback, hashlib, hmac, jwt, bcrypt, psycopg2
 from psycopg2 import sql
 from psycopg2.extras import execute_values
 from psycopg2 import errors as pg_errors
+from psycopg2.extras import RealDictCursor
+
 import razorpay
 from dotenv import load_dotenv
 
@@ -579,6 +581,101 @@ def admin_get_order_details(current_user_id, order_id):
         'user': {'id': row[1], 'name': row[11], 'email': row[12]},
         'items': items
     }), 200
+
+
+# Routes
+@app.route("/api/products", methods=["GET"])
+def get_products():
+    conn = get_connection()
+    c = conn.cursor(cursor_factory=RealDictCursor)
+    c.execute("SELECT * FROM products;")
+    products = c.fetchall()
+    c.close()
+    conn.close()
+    return jsonify(products)
+
+@app.route("/api/products/<int:id>", methods=["GET"])
+def get_product(id):
+    conn = get_connection()
+    c = conn.cursor(cursor_factory=RealDictCursor)
+    c.execute("SELECT * FROM products WHERE id = %s;", (id,))
+    product = c.fetchone()
+    c.close()
+    conn.close()
+    if product:
+        return jsonify(product)
+    return jsonify({"error": "Product not found"}), 404
+
+@app.route("/api/products", methods=["POST"])
+def add_product():
+    data = request.json
+    try:
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO products (name, category, price, image, rating, reviews, description, specs, stock)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id;
+        """, (
+            data.get("name"),
+            data.get("category"),
+            data.get("price"),
+            data.get("image"),
+            data.get("rating"),
+            data.get("reviews"),
+            data.get("description"),
+            data.get("specs"),
+            data.get("stock")
+        ))
+        product_id = c.fetchone()[0]
+        conn.commit()
+        c.close()
+        conn.close()
+        return jsonify({"message": "Product added successfully", "id": product_id}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/products/<int:id>", methods=["PUT"])
+def update_product(id):
+    data = request.json
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        UPDATE products SET name=%s, category=%s, price=%s, image=%s, rating=%s, reviews=%s, description=%s, specs=%s, stock=%s
+        WHERE id=%s RETURNING id;
+    """, (
+        data.get("name"),
+        data.get("category"),
+        data.get("price"),
+        data.get("image"),
+        data.get("rating"),
+        data.get("reviews"),
+        data.get("description"),
+        data.get("specs"),
+        data.get("stock"),
+        id
+    ))
+    updated = c.fetchone()
+    conn.commit()
+    c.close()
+    conn.close()
+    if updated:
+        return jsonify({"message": "Product updated successfully"})
+    return jsonify({"error": "Product not found"}), 404
+
+@app.route("/api/products/<int:id>", methods=["DELETE"])
+def delete_product(id):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM products WHERE id = %s RETURNING id;", (id,))
+    deleted = c.fetchone()
+    conn.commit()
+    c.close()
+    conn.close()
+    if deleted:
+        return jsonify({"message": "Product deleted successfully"})
+    return jsonify({"error": "Product not found"}), 404
+
 
 # -------- Public Settings --------
 @app.route('/api/admin/settings', methods=['GET'])
