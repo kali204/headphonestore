@@ -52,19 +52,17 @@ def init_db():
             );
         """)
         c.execute("""
-            CREATE TABLE IF NOT EXISTS products (
-                id SERIAL PRIMARY KEY,
-                name TEXT UNIQUE NOT NULL,
-                category TEXT NOT NULL,
-                price NUMERIC(10, 2) NOT NULL,
-                image TEXT,
-                rating NUMERIC(3, 1),
-                reviews INT,
-                description TEXT,
-                specs TEXT,
-                stock INT NOT NULL
-            );
-        """)
+        CREATE TABLE IF NOT EXISTS products (
+            id SERIAL PRIMARY KEY,
+            name TEXT UNIQUE NOT NULL,
+            category TEXT NOT NULL,
+            price NUMERIC(10, 2) NOT NULL,
+            stock INT NOT NULL,
+            image TEXT,
+            description TEXT
+        );
+    """)
+
         c.execute("""
             CREATE TABLE IF NOT EXISTS orders (
                 id SERIAL PRIMARY KEY,
@@ -584,101 +582,64 @@ def admin_get_order_details(current_user_id, order_id):
 
 
 # Routes
-@app.route("/api/products", methods=["GET"])
-def get_products():
-    conn = get_connection()
-    c = conn.cursor(cursor_factory=RealDictCursor)
-    c.execute("SELECT * FROM products;")
-    products = c.fetchall()
-    c.close()
-    conn.close()
-    return jsonify(products)
-
-@app.route("/api/products/<int:id>", methods=["GET"])
-def get_product(id):
-    conn = get_connection()
-    c = conn.cursor(cursor_factory=RealDictCursor)
-    c.execute("SELECT * FROM products WHERE id = %s;", (id,))
-    product = c.fetchone()
-    c.close()
-    conn.close()
-    if product:
-        return jsonify(product)
-    return jsonify({"error": "Product not found"}), 404
 @app.route('/api/products', methods=['POST'])
 def add_product():
-    conn = None
-    c = None
     try:
-        data = request.json
-        print("Received data:", data)  # debug log
+        data = request.get_json()
 
-        conn = get_connection()
-        c = conn.cursor()
-        c.execute("""
-            INSERT INTO products (name, category, price, stock, image, description)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """, (data['name'], data['category'], data['price'], data['stock'], data.get('image'), data.get('description')))
-        
-        conn.commit()
-        new_id = c.fetchone()[0]
-        c.close()
-        conn.close()
-        return jsonify({"id": new_id, "message": "Product added successfully"}), 201
+        required = ["name", "category", "price", "stock"]
+        for field in required:
+            if not data.get(field):
+                return jsonify({"error": f"Missing field: {field}"}), 400
+
+        with get_connection() as conn, conn.cursor() as c:
+            c.execute("""
+                INSERT INTO products (name, category, price, stock, image, description)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id;
+            """, (
+                data["name"],
+                data["category"],
+                float(data["price"]),
+                int(data["stock"]),
+                data.get("image"),
+                data.get("description")
+            ))
+            new_id = c.fetchone()[0]
+            conn.commit()
+
+        return jsonify({"message": "Product added", "id": new_id}), 201
+
     except Exception as e:
-        print("Error while adding product:", e)  # debug log
-        if conn:
-            conn.rollback()
-        if c:
-            c.close()
-        if conn:
-            conn.close()
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/products/<int:id>", methods=["PUT"])
-def update_product(id):
-    data = request.json
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("""
-        UPDATE products SET name=%s, category=%s, price=%s, image=%s, rating=%s, reviews=%s, description=%s, specs=%s, stock=%s
-        WHERE id=%s RETURNING id;
-    """, (
-        data.get("name"),
-        data.get("category"),
-        data.get("price"),
-        data.get("image"),
-        data.get("rating"),
-        data.get("reviews"),
-        data.get("description"),
-        data.get("specs"),
-        data.get("stock"),
-        id
-    ))
-    updated = c.fetchone()
-    conn.commit()
-    c.close()
-    conn.close()
-    if updated:
-        return jsonify({"message": "Product updated successfully"})
-    return jsonify({"error": "Product not found"}), 404
+@app.route('/api/products', methods=['GET'])
+def list_products():
+    try:
+        with get_connection() as conn, conn.cursor() as c:
+            c.execute("""
+                SELECT id, name, category, price, stock, image, description
+                FROM products ORDER BY id;
+            """)
+            rows = c.fetchall()
 
-@app.route("/api/products/<int:id>", methods=["DELETE"])
-def delete_product(id):
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("DELETE FROM products WHERE id = %s RETURNING id;", (id,))
-    deleted = c.fetchone()
-    conn.commit()
-    c.close()
-    conn.close()
-    if deleted:
-        return jsonify({"message": "Product deleted successfully"})
-    return jsonify({"error": "Product not found"}), 404
+        products = []
+        for r in rows:
+            products.append({
+                "id": r[0],
+                "name": r[1],
+                "category": r[2],
+                "price": float(r[3]),
+                "stock": r[4],
+                "image": r[5],
+                "description": r[6],
+            })
 
+        return jsonify(products)
 
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 # -------- Public Settings --------
 @app.route('/api/admin/settings', methods=['GET'])
 @token_required
