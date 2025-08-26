@@ -605,35 +605,27 @@ def get_product(id):
     if product:
         return jsonify(product)
     return jsonify({"error": "Product not found"}), 404
-
-@app.route("/api/products", methods=["POST"])
+@app.route('/api/products', methods=['POST'])
 def add_product():
-    data = request.json
     try:
-        conn = get_connection()
-        c = conn.cursor()
+        data = request.json
+        print("Received data:", data)  # debug log
+        
         c.execute("""
-            INSERT INTO products (name, category, price, image, rating, reviews, description, specs, stock)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id;
-        """, (
-            data.get("name"),
-            data.get("category"),
-            data.get("price"),
-            data.get("image"),
-            data.get("rating"),
-            data.get("reviews"),
-            data.get("description"),
-            data.get("specs"),
-            data.get("stock")
-        ))
-        product_id = c.fetchone()[0]
+            INSERT INTO products (name, category, price, stock, image, description)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (data['name'], data['category'], data['price'], data['stock'], data.get('image'), data.get('description')))
+        
         conn.commit()
-        c.close()
-        conn.close()
-        return jsonify({"message": "Product added successfully", "id": product_id}), 201
+        new_id = c.fetchone()[0]
+        
+        return jsonify({"id": new_id, "message": "Product added successfully"}), 201
     except Exception as e:
+        print("Error while adding product:", e)  # debug log
+        conn.rollback()
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/products/<int:id>", methods=["PUT"])
 def update_product(id):
