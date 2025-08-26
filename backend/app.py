@@ -607,10 +607,14 @@ def get_product(id):
     return jsonify({"error": "Product not found"}), 404
 @app.route('/api/products', methods=['POST'])
 def add_product():
+    conn = None
+    c = None
     try:
         data = request.json
         print("Received data:", data)  # debug log
-        
+
+        conn = get_connection()
+        c = conn.cursor()
         c.execute("""
             INSERT INTO products (name, category, price, stock, image, description)
             VALUES (%s, %s, %s, %s, %s, %s)
@@ -619,11 +623,17 @@ def add_product():
         
         conn.commit()
         new_id = c.fetchone()[0]
-        
+        c.close()
+        conn.close()
         return jsonify({"id": new_id, "message": "Product added successfully"}), 201
     except Exception as e:
         print("Error while adding product:", e)  # debug log
-        conn.rollback()
+        if conn:
+            conn.rollback()
+        if c:
+            c.close()
+        if conn:
+            conn.close()
         return jsonify({"error": str(e)}), 500
 
 
