@@ -1,9 +1,15 @@
-import  sqlite3
+import os
+import psycopg2
+from dotenv import load_dotenv
+load_dotenv()
 
 def seed_products():
-    conn = sqlite3.connect('store.db')
+    # ✅ Use your DATABASE_URL from Render (.env file)
+    DATABASE_URL = os.getenv("DATABASE_URL")
+
+    conn = psycopg2.connect(DATABASE_URL)
     c = conn.cursor()
-    
+
     products = [
         {
             'name': 'Sony WH-1000XM4',
@@ -72,19 +78,29 @@ def seed_products():
             'stock': 60
         }
     ]
-    
+
     for product in products:
-        c.execute('''INSERT OR REPLACE INTO products 
-                     (name, category, price, image, rating, reviews, description, specs, stock)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                 (product['name'], product['category'], product['price'], product['image'],
-                  product['rating'], product['reviews'], product['description'], 
-                  product['specs'], product['stock']))
-    
+     c.execute('''
+    INSERT INTO products (name, category, price, image, rating, reviews, description, specs, stock)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    ON CONFLICT (name) DO UPDATE SET
+        category = EXCLUDED.category,
+        price = EXCLUDED.price,
+        image = EXCLUDED.image,
+        rating = EXCLUDED.rating,
+        reviews = EXCLUDED.reviews,
+        description = EXCLUDED.description,
+        specs = EXCLUDED.specs,
+        stock = EXCLUDED.stock
+''', (
+    product['name'], product['category'], product['price'], product['image'],
+    product['rating'], product['reviews'], product['description'],
+    product['specs'], product['stock']
+))
+
     conn.commit()
     conn.close()
-    print("Sample products seeded successfully!")
+    print("✅ Sample products seeded successfully!")
 
 if __name__ == '__main__':
     seed_products()
- 

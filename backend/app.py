@@ -7,6 +7,7 @@ import datetime
 import razorpay
 import hmac
 from functools import wraps
+import psycopg2
 import os
 import traceback
 import bcrypt
@@ -32,129 +33,121 @@ razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_PATH = os.path.join(BASE_DIR, "store.db")
+def get_connection():
+    return psycopg2.connect(os.getenv("DATABASE_URL"))
+
 @app.route('/api/debug/users', methods=['GET'])
 def debug_list_users():
-    with sqlite3.connect('store.db') as conn:
-        c = conn.cursor()
-        c.execute('SELECT id, name, email FROM users')
-        users = c.fetchall()
+    with get_connection() as conn:
+        with conn.cursor() as c:
+            c.execute('SELECT id, name, email FROM users')
+            users = c.fetchall()
     return jsonify([{'id': u[0], 'name': u[1], 'email': u[2]} for u in users])
+
+
 
 
 # ---------------------- DATABASE SETUP ----------------------
 def init_db():
-    with sqlite3.connect('store.db') as conn:
-        conn.execute('PRAGMA foreign_keys = ON')
-        c = conn.cursor()
+    with get_connection() as conn:
+        with conn.cursor() as c:
+            # ---------------- Users ----------------
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                role TEXT DEFAULT 'customer',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """)
 
-        # ---------------- Users ----------------
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            role TEXT DEFAULT 'customer',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        """)
-
-        # ---------------- Products ----------------
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
+            # ---------------- Products ----------------
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS products (
+            id SERIAL PRIMARY KEY,
+            name TEXT UNIQUE NOT NULL,
             category TEXT NOT NULL,
-            price REAL NOT NULL,
+            price NUMERIC(10, 2) NOT NULL,
             image TEXT,
-            rating REAL DEFAULT 0,
-            reviews INTEGER DEFAULT 0,
+            rating NUMERIC(3, 1),
+            reviews INT,
             description TEXT,
             specs TEXT,
-            stock INTEGER DEFAULT 0
-        )
-        """)
+            stock INT NOT NULL
+            )
+            """)
 
-        # ---------------- Orders ----------------
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS orders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            total REAL NOT NULL,
-            status TEXT DEFAULT 'pending',
-            address TEXT,
-            city TEXT,
-            pincode TEXT,
-            phone TEXT,
-            razorpay_order_id TEXT,
-            razorpay_payment_id TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-        """)
+            # ---------------- Orders ----------------
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS orders (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users (id),
+                total DECIMAL NOT NULL,
+                status TEXT DEFAULT 'pending',
+                address TEXT,
+                city TEXT,
+                pincode TEXT,
+                phone TEXT,
+                razorpay_order_id TEXT,
+                razorpay_payment_id TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """)
 
-        # Ensure columns exist if DB was created before you added them
-        _ensure_column(c, 'orders', 'city', 'TEXT')
-        _ensure_column(c, 'orders', 'pincode', 'TEXT')
-        _ensure_column(c, 'orders', 'phone', 'TEXT')
-        _ensure_column(c, 'orders', 'razorpay_order_id', 'TEXT')
-        _ensure_column(c, 'orders', 'razorpay_payment_id', 'TEXT')
+            # ---------------- Order Items ----------------
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS order_items (
+                id SERIAL PRIMARY KEY,
+                order_id INTEGER NOT NULL REFERENCES orders (id) ON DELETE CASCADE,
+                product_id INTEGER NOT NULL REFERENCES products (id),
+                quantity INTEGER NOT NULL,
+                price DECIMAL NOT NULL
+            )
+            """)
 
-        # ---------------- Order Items ----------------
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS order_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            order_id INTEGER NOT NULL,
-            product_id INTEGER NOT NULL,
-            quantity INTEGER NOT NULL,
-            price REAL NOT NULL,
-            FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE,
-            FOREIGN KEY (product_id) REFERENCES products (id)
-        )
-        """)
+            # ---------------- Delivery Areas ----------------
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS delivery_areas (
+                id SERIAL PRIMARY KEY,
+                city TEXT NOT NULL,
+                pincode TEXT,
+                active INTEGER DEFAULT 1
+            )
+            """)
 
-        # ---------------- Delivery Areas ----------------
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS delivery_areas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            city TEXT NOT NULL,
-            pincode TEXT,
-            active INTEGER DEFAULT 1
-        )
-        """)
+            # ---------------- Settings ----------------
+            c.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                store_name TEXT NOT NULL DEFAULT 'Headphone Store',
+                maintenance INTEGER NOT NULL DEFAULT 0
+            )
+            """)
+            c.execute("""
+                INSERT INTO settings (id, store_name, maintenance)
+                VALUES (1, 'Headphone Store', 0)
+                ON CONFLICT (id) DO NOTHING
+            """)
 
-        # ---------------- Settings (single row) ----------------
-        c.execute("""
-        CREATE TABLE IF NOT EXISTS settings (
-            id INTEGER PRIMARY KEY CHECK (id = 1),
-            store_name TEXT NOT NULL DEFAULT 'Headphone Store',
-            maintenance INTEGER NOT NULL DEFAULT 0
-        )
-        """)
-        c.execute('INSERT OR IGNORE INTO settings (id, store_name, maintenance) VALUES (1, "Headphone Store", 0)')
+            # ---------------- Seed admin ----------------
+            admin_password = bcrypt.hashpw('admin123'.encode(), bcrypt.gensalt()).decode('utf-8')
+            c.execute("""
+                INSERT INTO users (id, name, email, password, role)
+                VALUES (1, 'Admin', 'admin@sony.com', %s, 'admin')
+                ON CONFLICT (id) DO NOTHING
+            """, (admin_password,))
 
-        # ---------------- Seed admin ----------------
-        admin_password = bcrypt.hashpw('admin123'.encode(), bcrypt.gensalt()).decode('utf-8')
-        c.execute("""
-            INSERT OR IGNORE INTO users (id, name, email, password, role)
-            VALUES (1, 'Admin', 'admin@sony.com', ?, 'admin')
-        """, (admin_password,))
-
-        # ---------------- Seed default delivery area ----------------
-        c.execute("""
-            INSERT OR IGNORE INTO delivery_areas (id, city, pincode, active)
-            VALUES (1, 'Haldwani', NULL, 1)
-        """)
+            # ---------------- Seed delivery area ----------------
+            c.execute("""
+                INSERT INTO delivery_areas (id, city, pincode, active)
+                VALUES (1, 'Haldwani', NULL, 1)
+                ON CONFLICT (id) DO NOTHING
+            """)
 
         conn.commit()
 
-
-def _ensure_column(cur, table, column, coltype):
-    """Add a column if it does not exist (SQLite lightweight migration helper)."""
-    cur.execute(f"PRAGMA table_info({table})")
-    cols = [r[1] for r in cur.fetchall()]
-    if column not in cols:
-        cur.execute(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}")
 
 # ---------------------- AUTH HELPERS ----------------------
 def token_required(f):
