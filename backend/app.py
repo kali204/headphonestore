@@ -1,6 +1,7 @@
-from  flask import Flask, request, jsonify
+from  flask import Flask, request, jsonify , send_from_directory
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 import razorpay
@@ -9,14 +10,25 @@ from datetime import datetime, timedelta
 import hmac
 import hashlib
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="dist", static_url_path="")
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve(path):
+    requested_path = os.path.join(app.static_folder, path)
+    
+    if path != "" and os.path.exists(requested_path):
+        return send_from_directory(app.static_folder, path)
+    else:
+        # For React Router: serve index.html for all other routes
+        return send_from_directory(app.static_folder, "index.html")
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:1947@localhost/ecommerce_db'
 app.config['JWT_SECRET_KEY'] = 'your-secret-key-change-in-production'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
 
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 jwt = JWTManager(app)
-CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
+CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})
 
 # Razorpay Configuration
 razorpay_client = razorpay.Client(auth=("rzp_test_RAe9hgfWZn0DQ5", "IUhKwWY6B846Ul6UnAVPdSin"))
@@ -93,6 +105,21 @@ class Address(db.Model):
     city = db.Column(db.String(100), nullable=False)
     state = db.Column(db.String(100), nullable=False)
     zip_code = db.Column(db.String(20), nullable=False)
+class Settings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    site_name = db.Column(db.String(100), default='ShopEase')
+    site_description = db.Column(db.String(255), default='Modern eCommerce Platform')
+    currency = db.Column(db.String(10), default='USD')
+    tax_rate = db.Column(db.Float, default=10.0)
+    shipping_rate = db.Column(db.Float, default=5.99)
+    free_shipping_threshold = db.Column(db.Float, default=50.0)
+    contact_email = db.Column(db.String(120), default='support@shopease.com')
+    contact_phone = db.Column(db.String(50), default='+1-234-567-8900')
+    address = db.Column(db.String(255), default='123 Main St, City, State 12345')
+    # Add location-based delivery options
+    locations = db.Column(db.JSON, default=[])  # [{"city": "CityName", "delivery_charge": 5.99}]
+
+
 
 # Auth Routes
 @app.route('/api/auth/register', methods=['POST'])
@@ -449,6 +476,62 @@ def get_addresses():
         'id': a.id, 'label': a.label, 'address': a.address,
         'city': a.city, 'state': a.state, 'zipCode': a.zip_code
     } for a in addresses])
+
+
+@app.route('/api/admin/settings', methods=['GET'])
+@jwt_required()
+def get_settings():
+    identity = get_jwt_identity()
+    user = User.query.get(identity)
+    if user.role != 'admin':
+        return jsonify({'msg': 'Access denied'}), 403
+
+    settings = Settings.query.first()
+    if not settings:
+        settings = Settings()
+        db.session.add(settings)
+        db.session.commit()
+    return jsonify({
+        'siteName': settings.site_name,
+        'siteDescription': settings.site_description,
+        'currency': settings.currency,
+        'taxRate': settings.tax_rate,
+        'shippingRate': settings.shipping_rate,
+        'freeShippingThreshold': settings.free_shipping_threshold,
+        'contactEmail': settings.contact_email,
+        'contactPhone': settings.contact_phone,
+        'address': settings.address,
+        'locations': settings.locations
+    })
+
+
+@app.route('/api/admin/settings', methods=['PUT'])
+@jwt_required()
+def update_settings():
+    identity = get_jwt_identity()
+    user = User.query.get(identity)
+    if user.role != 'admin':
+        return jsonify({'msg': 'Access denied'}), 403
+
+    data = request.json
+    settings = Settings.query.first()
+    if not settings:
+        settings = Settings()
+        db.session.add(settings)
+
+    settings.site_name = data.get('siteName', settings.site_name)
+    settings.site_description = data.get('siteDescription', settings.site_description)
+    settings.currency = data.get('currency', settings.currency)
+    settings.tax_rate = float(data.get('taxRate', settings.tax_rate))
+    settings.shipping_rate = float(data.get('shippingRate', settings.shipping_rate))
+    settings.free_shipping_threshold = float(data.get('freeShippingThreshold', settings.free_shipping_threshold))
+    settings.contact_email = data.get('contactEmail', settings.contact_email)
+    settings.contact_phone = data.get('contactPhone', settings.contact_phone)
+    settings.address = data.get('address', settings.address)
+    settings.locations = data.get('locations', settings.locations)
+
+    db.session.commit()
+    return jsonify({'msg': 'Settings updated successfully!'})
 
 # Create admin user
 def create_admin():
