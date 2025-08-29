@@ -105,20 +105,16 @@ class Address(db.Model):
     city = db.Column(db.String(100), nullable=False)
     state = db.Column(db.String(100), nullable=False)
     zip_code = db.Column(db.String(20), nullable=False)
-class Settings(db.Model):
+class Setting(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    site_name = db.Column(db.String(100), default='ShopEase')
-    site_description = db.Column(db.String(255), default='Modern eCommerce Platform')
-    currency = db.Column(db.String(10), default='USD')
-    tax_rate = db.Column(db.Float, default=10.0)
-    shipping_rate = db.Column(db.Float, default=5.99)
-    free_shipping_threshold = db.Column(db.Float, default=50.0)
-    contact_email = db.Column(db.String(120), default='support@shopease.com')
-    contact_phone = db.Column(db.String(50), default='+1-234-567-8900')
-    address = db.Column(db.String(255), default='123 Main St, City, State 12345')
-    # Add location-based delivery options
-    locations = db.Column(db.JSON, default=[])  # [{"city": "CityName", "delivery_charge": 5.99}]
-
+    site_name = db.Column(db.String(100))
+    contact_email = db.Column(db.String(100))
+    phone = db.Column(db.String(20))
+class DeliveryZone(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    city = db.Column(db.String(100), nullable=False)
+    state = db.Column(db.String(100), nullable=False)
+    pincode = db.Column(db.String(20), nullable=False, unique=True)
 
 
 # Auth Routes
@@ -268,6 +264,28 @@ def delete_product(product_id):
 
 # Order Routes
 # ---------------- Create Order ----------------
+@app.route('/api/check-delivery/<pincode>', methods=['GET'])
+def check_delivery_get(pincode):
+    zone = DeliveryZone.query.filter_by(pincode=pincode).first()
+    if zone:
+        return jsonify({'deliverable': True, 'city': zone.city, 'state': zone.state})
+    return jsonify({'deliverable': False})
+
+
+@app.route('/api/check-delivery', methods=['POST'])
+def check_delivery_post():
+    data = request.get_json()
+    pincode = str(data.get('pincode')).strip()
+    state = str(data.get('state')).strip().lower()
+
+    zone = DeliveryZone.query.filter_by(pincode=pincode).first()
+
+    if zone and zone.state.lower().strip() == state:
+        return jsonify({'deliverable': True})
+
+    return jsonify({'deliverable': False})
+
+
 @app.route('/api/orders', methods=['POST'])
 @jwt_required()
 def create_order():
@@ -314,19 +332,43 @@ def create_order():
 
     except Exception as e:
         return jsonify({'message': 'Order creation failed', 'error': str(e)}), 500
+    
+
+@app.route('/api/create-razorpay-order', methods=['POST'])
+@jwt_required()
+def create_razorpay_order():
+    try:
+        data = request.get_json()
+        if not data or 'totalAmount' not in data:
+            return jsonify({'message': 'Invalid request data'}), 400
+
+        razorpay_order = razorpay_client.order.create({
+            'amount': int(float(data['totalAmount']) * 100),  # amount in paise
+            'currency': 'INR',
+            'payment_capture': 1
+        })
+
+        return jsonify({
+            'razorpayOrderId': razorpay_order['id']
+        })
+
+    except Exception as e:
+        return jsonify({'message': 'Razorpay order creation failed', 'error': str(e)}), 500
+
 
 # ---------------- Verify Payment ----------------
 @app.route('/api/orders/verify-payment', methods=['POST'])
 @jwt_required()
 def verify_payment():
     try:
+        user_id = get_jwt_identity()
         data = request.get_json()
-        required_fields = ['razorpayOrderId', 'razorpayPaymentId', 'razorpaySignature', 'orderId']
+        required_fields = ['razorpayOrderId', 'razorpayPaymentId', 'razorpaySignature', 'items', 'totalAmount', 'shippingAddress']
         if not all(field in data for field in required_fields):
             return jsonify({'message': 'Missing required fields'}), 400
 
-        # Compute HMAC signature
-        secret = "rzp_test_YourSecret"  # Your Razorpay Secret Key
+        # Verify signature
+        secret = os.getenv("RAZORPAY_KEY_SECRET")
         generated_signature = hmac.new(
             secret.encode(),
             f"{data['razorpayOrderId']}|{data['razorpayPaymentId']}".encode(),
@@ -336,16 +378,31 @@ def verify_payment():
         if generated_signature != data['razorpaySignature']:
             return jsonify({'message': 'Payment verification failed'}), 400
 
-        # Update order status
-        order = Order.query.get(data['orderId'])
-        if not order:
-            return jsonify({'message': 'Order not found'}), 404
+        # ✅ Now create order in DB
+        order = Order(
+            user_id=user_id,
+            total_amount=float(data['totalAmount']),
+            razorpay_order_id=data['razorpayOrderId'],
+            razorpay_payment_id=data['razorpayPaymentId'],
+            shipping_address=data['shippingAddress'],
+            status="processing"
+        )
+        db.session.add(order)
+        db.session.flush()  # get order.id
 
-        order.status = 'processing'
-        order.razorpay_payment_id = data['razorpayPaymentId']
+        # Add items
+        for item in data['items']:
+            order_item = OrderItem(
+                order_id=order.id,
+                product_id=item['id'],
+                quantity=item['quantity'],
+                price=item['price']
+            )
+            db.session.add(order_item)
+
         db.session.commit()
 
-        return jsonify({'message': 'Payment verified successfully'})
+        return jsonify({'message': 'Payment verified and order created', 'orderId': order.id})
 
     except Exception as e:
         return jsonify({'message': 'Payment verification failed', 'error': str(e)}), 500
@@ -478,60 +535,103 @@ def get_addresses():
     } for a in addresses])
 
 
+# ✅ GET all settings
 @app.route('/api/admin/settings', methods=['GET'])
-@jwt_required()
 def get_settings():
-    identity = get_jwt_identity()
-    user = User.query.get(identity)
-    if user.role != 'admin':
-        return jsonify({'msg': 'Access denied'}), 403
+    settings = Setting.query.all()
+    return jsonify([{
+        "id": s.id,
+        "site_name": s.site_name,
+        "contact_email": s.contact_email,
+        "phone": s.phone
+    } for s in settings])
 
-    settings = Settings.query.first()
-    if not settings:
-        settings = Settings()
-        db.session.add(settings)
-        db.session.commit()
-    return jsonify({
-        'siteName': settings.site_name,
-        'siteDescription': settings.site_description,
-        'currency': settings.currency,
-        'taxRate': settings.tax_rate,
-        'shippingRate': settings.shipping_rate,
-        'freeShippingThreshold': settings.free_shipping_threshold,
-        'contactEmail': settings.contact_email,
-        'contactPhone': settings.contact_phone,
-        'address': settings.address,
-        'locations': settings.locations
-    })
-
-
-@app.route('/api/admin/settings', methods=['PUT'])
-@jwt_required()
-def update_settings():
-    identity = get_jwt_identity()
-    user = User.query.get(identity)
-    if user.role != 'admin':
-        return jsonify({'msg': 'Access denied'}), 403
-
+# ✅ POST new settings
+@app.route('/api/admin/settings', methods=['POST'])
+def create_setting():
     data = request.json
-    settings = Settings.query.first()
-    if not settings:
-        settings = Settings()
-        db.session.add(settings)
-
-    settings.site_name = data.get('siteName', settings.site_name)
-    settings.site_description = data.get('siteDescription', settings.site_description)
-    settings.currency = data.get('currency', settings.currency)
-    settings.tax_rate = float(data.get('taxRate', settings.tax_rate))
-    settings.shipping_rate = float(data.get('shippingRate', settings.shipping_rate))
-    settings.free_shipping_threshold = float(data.get('freeShippingThreshold', settings.free_shipping_threshold))
-    settings.contact_email = data.get('contactEmail', settings.contact_email)
-    settings.contact_phone = data.get('contactPhone', settings.contact_phone)
-    settings.address = data.get('address', settings.address)
-    settings.locations = data.get('locations', settings.locations)
-
+    new_setting = Setting(
+        site_name=data.get("site_name"),
+        contact_email=data.get("contact_email"),
+        phone=data.get("phone")
+    )
+    db.session.add(new_setting)
     db.session.commit()
-    return jsonify({'msg': 'Settings updated successfully!'})
+    return jsonify({"message": "Setting saved successfully"}), 201
+
+# ✅ PUT update existing setting
+@app.route('/api/admin/settings/<int:id>', methods=['PUT'])
+def update_setting(id):
+    setting = Setting.query.get_or_404(id)
+    data = request.json
+    setting.site_name = data.get("site_name", setting.site_name)
+    setting.contact_email = data.get("contact_email", setting.contact_email)
+    setting.phone = data.get("phone", setting.phone)
+    db.session.commit()
+    return jsonify({"message": "Setting updated successfully"})
+
+# Get all zones
+@app.route('/api/admin/delivery-zones', methods=['GET'])
+@jwt_required()
+def get_delivery_zones():
+    identity = get_jwt_identity()
+    user = User.query.get(identity)
+    if user.role != 'admin':
+        return jsonify({'msg': 'Access denied'}), 403
+
+    zones = DeliveryZone.query.all()
+    return jsonify([{
+        'id': z.id,
+        'city': z.city,
+        'state': z.state,
+        'pincode': z.pincode
+    } for z in zones])
+
+
+# Add a new zone
+@app.route('/api/admin/delivery-zones', methods=['POST'])
+@jwt_required()
+def add_delivery_zone():
+    identity = get_jwt_identity()
+    user = User.query.get(identity)
+    if user.role != 'admin':
+        return jsonify({'msg': 'Access denied'}), 403
+
+    data = request.get_json()
+    city = data.get('city')
+    state = data.get('state')
+    pincode = data.get('pincode')
+
+    if not city or not state or not pincode:
+        return jsonify({'msg': 'All fields required'}), 400
+
+    zone = DeliveryZone(city=city, state=state, pincode=pincode)
+    db.session.add(zone)
+    db.session.commit()
+
+    return jsonify({'msg': 'Delivery zone added successfully!'})
+
+
+
+# Delete a zone
+@app.route('/api/admin/delivery-zones/<int:zone_id>', methods=['DELETE'])
+@jwt_required()
+def delete_delivery_zone(zone_id):
+    identity = get_jwt_identity()
+    user = User.query.get(identity)
+    if user.role != 'admin':
+        return jsonify({'msg': 'Access denied'}), 403
+
+    zone = DeliveryZone.query.get(zone_id)
+    if not zone:
+        return jsonify({'msg': 'Zone not found'}), 404
+
+    db.session.delete(zone)
+    db.session.commit()
+    return jsonify({'msg': 'Delivery zone deleted successfully'})
+
+
+
 
 # Create admin user
 def create_admin():
