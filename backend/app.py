@@ -28,7 +28,14 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
-CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})
+CORS(app, resources={
+    r"/api/*": {
+        "origins": [
+            "http://localhost:5173",           # local frontend
+            "https://headphonestore-cmeo.onrender.com"  # deployed frontend
+        ]
+    }
+})
 
 # Razorpay Configuration
 razorpay_client = razorpay.Client(auth=("rzp_test_RAe9hgfWZn0DQ5", "IUhKwWY6B846Ul6UnAVPdSin"))
