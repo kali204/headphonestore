@@ -21,7 +21,13 @@ def serve(path):
     else:
         # For React Router: serve index.html for all other routes
         return send_from_directory(app.static_folder, "index.html")
-app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql://{os.environ.get('MYSQL_USER')}:{os.environ.get('MYSQL_PASSWORD')}@{os.environ.get('MYSQL_HOST')}:{os.environ.get('MYSQL_PORT')}/{os.environ.get('MYSQL_DB')}"
+DB_USER = os.environ.get('MYSQL_USER', 'root')
+DB_PASSWORD = os.environ.get('MYSQL_PASSWORD', '')
+DB_HOST = os.environ.get('MYSQL_HOST', 'localhost')
+DB_PORT = os.environ.get('MYSQL_PORT', '3306')  # default to 3306 if not set
+DB_NAME = os.environ.get('MYSQL_DB', 'ecommerce_d')
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 app.config['JWT_SECRET_KEY'] = 'your-secret-key-change-in-production'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
 
@@ -655,10 +661,7 @@ def create_admin():
 
 
 
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        create_admin()
-    
-    app.run(debug=True)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
  
