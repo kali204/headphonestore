@@ -21,10 +21,10 @@ def serve(path):
     else:
         # For React Router: serve index.html for all other routes
         return send_from_directory(app.static_folder, "index.html")
-DB_USER = os.environ.get('MYSQL_USER', 'root')
-DB_PASSWORD = os.environ.get('MYSQL_PASSWORD', '')
-DB_HOST = os.environ.get('MYSQL_HOST', 'localhost')
-DB_PORT = os.environ.get('MYSQL_PORT', '3306')  # default to 3306 if not set
+DB_USER = os.environ.get('MYSQL_USER', 'root')        # default root if env not set
+DB_PASSWORD = os.environ.get('MYSQL_PASSWORD', '1947')  # replace with your password
+DB_HOST = os.environ.get('MYSQL_HOST', '0.tcp.in.ngrok.io')
+DB_PORT = os.environ.get('MYSQL_PORT', '16801')       # string is fine; SQLAlchemy converts
 DB_NAME = os.environ.get('MYSQL_DB', 'ecommerce_d')
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
