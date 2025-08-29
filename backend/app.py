@@ -21,7 +21,7 @@ def serve(path):
     else:
         # For React Router: serve index.html for all other routes
         return send_from_directory(app.static_folder, "index.html")
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:1947@localhost/ecommerce_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql://{os.environ.get('MYSQL_USER')}:{os.environ.get('MYSQL_PASSWORD')}@{os.environ.get('MYSQL_HOST')}:{os.environ.get('MYSQL_PORT')}/{os.environ.get('MYSQL_DB')}"
 app.config['JWT_SECRET_KEY'] = 'your-secret-key-change-in-production'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
 
