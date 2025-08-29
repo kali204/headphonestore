@@ -25,7 +25,7 @@ DB_USER = os.environ.get('MYSQL_USER', 'root')        # default root if env not 
 DB_PASSWORD = os.environ.get('MYSQL_PASSWORD', '1947')  # replace with your password
 DB_HOST = os.environ.get('MYSQL_HOST', '0.tcp.in.ngrok.io')
 DB_PORT = os.environ.get('MYSQL_PORT', '16801')       # string is fine; SQLAlchemy converts
-DB_NAME = os.environ.get('MYSQL_DB', 'ecommerce_d')
+DB_NAME = os.environ.get('MYSQL_DB', 'ecommerce_db')
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 app.config['JWT_SECRET_KEY'] = 'your-secret-key-change-in-production'
